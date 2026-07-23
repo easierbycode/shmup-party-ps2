@@ -1,0 +1,26 @@
+{
+  "name": "shmup-party-ps2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sh'M↑ Party — 5velte-ps2 (AthenaEnv v4) PlayStation 2 port; one JS codebase for browser + real PS2",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "assets": "python3 scripts/prep-assets.py",
+    "iso": "deno run --allow-read --allow-write scripts/build-athena-iso.ts ps2 shmup-party-ps2.iso"
+  },
+  "dependencies": {
+    "phaser": "4.2.1",
+    "svelte": "^5.56.4",
+    "5velte-ph4ser": "^1.0.0",
+    "5velte-ps2": "github:easierbycode/svelte-ps2"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@tsconfig/svelte": "^5.0.8",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.3"
+  }
+}

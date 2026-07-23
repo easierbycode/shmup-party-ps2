@@ -1,0 +1,63 @@
+# Build the web app + the bootable PS2 ISO, then publish both to GitHub
+# Pages: https://easierbycode.com/shmup-party-ps2/
+#   /                    Xbox-green download page
+#   /play/               browser build (5velte-ps2 Phaser host)
+#   /shmup-party-ps2.iso the AthenaEnv disc image (also a run artifact)
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build web app + download page
+        run: |
+          npm ci
+          npm run build
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Build PS2 ISO
+        run: deno run --allow-read --allow-write scripts/build-athena-iso.ts ps2 dist/shmup-party-ps2.iso
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Upload ISO as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shmup-party-ps2-iso
+          path: dist/shmup-party-ps2.iso
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
