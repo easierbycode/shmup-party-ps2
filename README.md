@@ -1,5 +1,7 @@
 # Sh'M↑ Party — PlayStation 2
 
+![Sh'M↑ Party — level-up perk screen](docs/preview.png)
+
 Twin-stick survival shooter, ported from
 [shmup-party-sp](https://github.com/easierbycode/shmup-party-sp) (Svelte 5 +
 Phaser 4) to [5velte-ps2](https://github.com/easierbycode/svelte-ps2) — the
