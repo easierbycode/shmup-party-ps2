@@ -9,6 +9,8 @@
     "checkJs": false,
     "isolatedModules": true,
     "moduleDetection": "force",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "types": ["vite/client"],
     "paths": {
       "lib/*": ["./ps2/lib/*"],
