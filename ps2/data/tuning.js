@@ -22,11 +22,18 @@ export const WEAPONS = [
 export const ENEMIES = {
   zombie: { hp: 300, speed: 70, radius: 14, anim: 10, xp: 10 },
   alien: { hp: 200, speed: 104, radius: 15, anim: 12, xp: 10 },
+  // fragile skitterer: sprints at speed*dart.mult for minT..maxT seconds,
+  // rests pauseMin..pauseMax, re-aims each dart with +/-jitter radians
+  spider: {
+    hp: 100, speed: 95, radius: 12, anim: 16, xp: 15,
+    dart: { mult: 2.4, minT: 0.35, maxT: 0.6, pauseMin: 0.12, pauseMax: 0.4, jitter: 0.55 },
+  },
 };
 
 export const WAVE = {
   baseCount: 8,
   perWave: 4,
+  spiderWave: 3,       // first wave spiders can appear
   maxAlive: 24,
   trickle: 0.35,       // seconds between deferred spawns once at maxAlive
   clearRatio: 0.9,     // wave ends when 90% are down (as in the original)
