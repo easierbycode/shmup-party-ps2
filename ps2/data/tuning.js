@@ -16,7 +16,7 @@ export const PLAYER = {
 
 // cycled with R1 (barrier dash stays on L1, as in the original)
 export const WEAPONS = [
-  { id: 'ion', name: 'ION', rate: 0.3, speed: 350, dmg: 100, radius: 12, sheet: 'ion', impact: 'ion-impact', life: 2.5 },
+  { id: 'ion', name: 'ION', rate: 0.3, speed: 350, dmg: 100, radius: 12, sheet: 'ion', fps: 20, impact: 'ion-impact', life: 2.5 },
   { id: 'ciga', name: 'CIGA', rate: 0.3, speed: 350, dmg: 100, radius: 8, sheet: 'ciga', fps: 8, scale: 2.4, impact: 'smoke', life: 2.5 },
   { id: 'pacman', name: 'PAC', rate: 0.6, speed: 600, dmg: 50, radius: 14, sheet: 'pacman', fps: 12, impact: 'pac-ghost', pierce: true, life: 1.6 },
 ];

@@ -114,9 +114,9 @@ export const SHEETS = {
     "fw": 9
   },
   "ion": {
-    "anim": 1,
+    "anim": 4,
     "cols": 8,
-    "count": 16,
+    "count": 64,
     "dirs": 16,
     "fh": 64,
     "file": "assets/ion.png",

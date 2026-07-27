@@ -244,17 +244,21 @@ rotations("player.png", "player", 72, 0)
 # every projectile that reads as pointing somewhere needs direction frames, or
 # it flies sideways: the ion bolt's burst leads and its tail streams behind,
 # the cigarette leads with its sunglasses, pacman chomps forward. bullet.png is
-# a round glow — symmetric, so it stays a plain 2-frame strip. ion only
-# pre-rotates its longest streak: renderBullets() picks the frame by heading,
-# so the 4-frame charge-up was never played anyway. base angles are what
-# playtesting proved out — front leads, not trails.
-rotations("ion.png", "ion", 64, 180, fw=48, fh=30, frames=[3])
+# a round glow — symmetric, so it stays a plain 2-frame strip. base angles are
+# what playtesting proved out — front leads, not trails.
+# all four ion frames are pre-rotated so the bolt crackles in flight like the
+# original's 20fps loop; 4 anim x 16 dirs of 64px cells is a 512x512 grid,
+# still inside the GS texture limit
+rotations("ion.png", "ion", 64, 180, fw=48, fh=30)
 rotations("ciga-bullet.png", "ciga", 16, 90, fw=9, fh=12, cols=16)
 rotations("pacman-spritesheet.png", "pacman", 32, 0, fw=32, fh=32, cols=16)
-# the dash barrier swings to whatever direction the dash travels. Two of its
+# the dash barrier swings to whatever direction the dash travels. The arc's
+# dense shield face is at the LEFT of the source cell with the trail streaming
+# right, so it natively faces 180 (the Phaser original says the same with
+# bulletAngleOffset = 180) — with base_angle 0 it dashed tail-first. Two of its
 # eight shimmer frames keep the crackle; 90px cells fit the 80x41 arc's
 # rotation diagonal (hypot = 89.9)
-rotations("barrier.png", "barrier", 90, 0, fw=80, fh=41, frames=[0, 4])
+rotations("barrier.png", "barrier", 90, 180, fw=80, fh=41, frames=[0, 4])
 font_sheet()
 background()
 copies()
