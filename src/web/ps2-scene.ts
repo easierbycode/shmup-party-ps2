@@ -7,6 +7,7 @@ import Phaser from 'phaser'
 import { createRuntime, type PS2Runtime } from '5velte-ps2'
 import { createPhaserHost } from '5velte-ps2/phaser'
 import { WebPadSource } from './pad-source.ts'
+import { makeMultiPads } from './multi-pads.ts'
 
 const assetUrls = import.meta.glob('../../ps2/assets/*.png', {
   eager: true,
@@ -50,7 +51,9 @@ export default class Ps2Scene extends Phaser.Scene {
     g.Screen = r.Screen
     g.Draw = r.Draw
     g.Color = r.Color
-    g.Pads = r.Pads
+    // runtime.Pads is single-port by design; the game spawns one player per
+    // connected port, so the browser build needs the per-port view instead
+    g.Pads = makeMultiPads(this.pads)
     g.Image = r.Image
     g.Font = r.Font
     g.Timer = r.Timer
