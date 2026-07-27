@@ -1,10 +1,11 @@
-// Zombie / alien horde: wave composition, edge spawning, chase AI,
-// death drops. Ported from wave-manager.ts + zombie.ts/alien.ts.
+// Zombie / alien / spider horde: wave composition, edge spawning, chase and
+// skitter AI, death drops. Ported from wave-manager.ts + zombie.ts/alien.ts;
+// the spider is new to the port (Crimsonland spider2 art, dart-and-pause AI).
 
 import { ENEMIES, WAVE, POWERUPS } from 'data/tuning.js';
 import { S } from 'lib/sprites.js';
 import { fx } from 'lib/fx.js';
-import { SCREEN_W, SCREEN_H, rand, randInt, pick, hit } from 'lib/util.js';
+import { SCREEN_W, SCREEN_H, rand, randInt, pick, hit, clamp } from 'lib/util.js';
 
 let nextId = 1;
 
@@ -13,9 +14,11 @@ export function buildWave(n) {
   const list = [];
   const count = WAVE.baseCount + WAVE.perWave * n;
   const alienChance = Math.min(0.08 * n, 0.55);
+  const spiderChance = n >= WAVE.spiderWave ? Math.min(0.1 * (n - WAVE.spiderWave + 1), 0.35) : 0;
   const hpScale = 1 + 0.08 * (n - 1);
   for (let i = 0; i < count; i++) {
-    const type = Math.random() < alienChance ? 'alien' : 'zombie';
+    const roll = Math.random();
+    const type = roll < spiderChance ? 'spider' : roll < spiderChance + alienChance ? 'alien' : 'zombie';
     const base = ENEMIES[type];
     list.push({
       type,
@@ -45,11 +48,19 @@ export function spawnEnemy(world, desc) {
     radius: ENEMIES[desc.type].radius,
     animT: rand(0, 1),
     facingLeft: false,
+    // spider skitter state; inert for the chase types
+    darting: false,
+    dartT: 0,
+    dartDir: 0,
   });
 }
 
 export function updateEnemies(world, dt) {
   for (const e of world.enemies) {
+    if (e.type === 'spider') {
+      updateSpider(world, e, dt);
+      continue;
+    }
     e.animT += dt;
     const target = nearestPlayer(world, e.x, e.y);
     if (!target) continue;
@@ -63,6 +74,38 @@ export function updateEnemies(world, dt) {
       e.y += (dy / d) * e.speed * dt;
     }
   }
+}
+
+/** dart-and-pause: commit to a jittered heading toward the nearest player
+    for the dart's whole duration, rest, re-aim. Legs (animT) only move
+    while darting, so paused spiders sit on a frozen frame. */
+function updateSpider(world, e, dt) {
+  const spec = ENEMIES.spider.dart;
+  e.dartT -= dt;
+  if (e.darting) {
+    e.animT += dt;
+    e.x += Math.cos(e.dartDir) * e.speed * spec.mult * dt;
+    e.y += Math.sin(e.dartDir) * e.speed * spec.mult * dt;
+    // darts don't home mid-flight — keep a bad heading from leaving the arena
+    e.x = clamp(e.x, -40, SCREEN_W + 40);
+    e.y = clamp(e.y, -40, SCREEN_H + 40);
+    if (e.dartT <= 0) {
+      e.darting = false;
+      e.dartT = rand(spec.pauseMin, spec.pauseMax);
+    }
+    return;
+  }
+  if (e.dartT > 0) return;
+  const target = nearestPlayer(world, e.x, e.y);
+  if (!target) return;
+  const dx = target.x - e.x;
+  const dy = target.y - e.y;
+  // overlapping the player: sit still like the chase types do
+  if (Math.sqrt(dx * dx + dy * dy) <= e.radius + 14) return;
+  e.dartDir = Math.atan2(dy, dx) + rand(-spec.jitter, spec.jitter);
+  e.facingLeft = Math.cos(e.dartDir) < 0;
+  e.darting = true;
+  e.dartT = rand(spec.minT, spec.maxT);
 }
 
 export function renderEnemies(world) {
@@ -80,7 +123,8 @@ export function damageEnemy(world, e, dmg, killer) {
 
   world.enemies.splice(world.enemies.indexOf(e), 1);
   world.waveKills++;
-  fx(world, 'blood-splat', e.x, e.y, { fps: 30 });
+  if (e.type === 'spider') fx(world, 'spider-die', e.x, e.y, { fps: 24, flipX: e.facingLeft });
+  else fx(world, 'blood-splat', e.x, e.y, { fps: 30 });
 
   if (killer) killer.xp += ENEMIES[e.type].xp;
 

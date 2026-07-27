@@ -4,8 +4,9 @@
 AthenaEnv's Image API has no rotation and the PS2 GS tops out at 1024px
 textures, so the source art is adapted at build time:
 
-  - zombie/alien atlases (255x1193 / 254x1555 — too tall for the GS) are
-    repacked into 8-frame untrimmed horizontal strips
+  - creature atlases (zombie/alien/spider2 — too tall for the GS) are
+    repacked into 8-frame untrimmed horizontal strips; spider2 also yields
+    a spider-die strip from its 64-frame death animation
   - the player ship and ion bolt get 16 pre-rotated direction frames
     (22.5 deg steps, matching heading = atan2(dy,dx) in screen coords)
   - a Share Tech Mono bitmap-font grid (chars 32..127, 16 cols) replaces
@@ -42,8 +43,9 @@ def out_file(name):
     return f"{name.replace('-', '_')}.png"
 
 
-def repack_atlas(name, prefix, picks):
+def repack_atlas(name, prefix, picks, out=None):
     """Extract `picks` frames from a TexturePacker atlas into an untrimmed strip."""
+    out = out or name
     data = json.loads((SRC / f"{name}.json").read_text())
     tex = data["textures"][0]
     frames = {f["filename"]: f for f in tex["frames"]}
@@ -60,8 +62,8 @@ def repack_atlas(name, prefix, picks):
         off = f["spriteSourceSize"]
         strip.paste(cell, (i * cw + off["x"], off["y"]))
 
-    strip.save(OUT / out_file(name))
-    sheets[name] = {"file": f"assets/{out_file(name)}", "fw": cw, "fh": ch, "count": len(picks)}
+    strip.save(OUT / out_file(out))
+    sheets[out] = {"file": f"assets/{out_file(out)}", "fw": cw, "fh": ch, "count": len(picks)}
 
 
 def rotations(src_name, out_name, cell, base_angle):
@@ -171,6 +173,9 @@ def emit_js():
 picks = [1, 9, 17, 25, 33, 41, 49, 57]
 repack_atlas("zombie", "move-", picks)
 repack_atlas("alien", "move-", picks)
+# spider2 frames 64 are 64x64 cells (all others 72x72) — picks avoid them
+repack_atlas("spider2", "move-", picks, out="spider")
+repack_atlas("spider2", "die-", picks, out="spider-die")
 rotations("player.png", "player", 72, 0)
 rotations("ion.png", "ion", 64, 180)
 font_sheet()
