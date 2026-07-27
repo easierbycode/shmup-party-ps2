@@ -256,7 +256,9 @@ export default class GameScreen {
         p.dashCd = PLAYER.dash.cooldown;
         p.dashDir = p.heading;
         p.dashHits = new Set();
-        p.invulnT = Math.max(p.invulnT, PLAYER.dash.time);
+        // endGrace: a couple of iframes past the dash so stopping inside
+        // the crowd doesn't hurt on the very next frame
+        p.invulnT = Math.max(p.invulnT, PLAYER.dash.time + PLAYER.dash.endGrace);
       }
 
       // movement: d-pad or left stick
@@ -449,7 +451,7 @@ export default class GameScreen {
         for (let i = 0; i < POWERUPS.fireblastCount; i++) {
           const a = (i / POWERUPS.fireblastCount) * Math.PI * 2;
           w.bullets.push({
-            spec: { ...spec, sheet: 'bullet', rotated: false, fps: 12, radius: 8, impact: null },
+            spec: { ...spec, sheet: 'bullet', fps: 12, radius: 8, impact: null },
             x: pu.x,
             y: pu.y,
             vx: Math.cos(a) * POWERUPS.fireblastSpeed,
@@ -547,16 +549,19 @@ export default class GameScreen {
 
     if (p.dashT > 0) {
       const bar = S('barrier');
-      bar.draw(bar.frameAt(p.animT, 60), p.x + Math.cos(p.dashDir) * 14, p.y + Math.sin(p.dashDir) * 14, {
-        flipX: Math.cos(p.dashDir) < 0,
-      });
+      // pre-rotated to the dash heading; 15fps keeps the two shimmer frames
+      // crackling at the old 8-frame/60fps cycle length
+      bar.draw(bar.dirAt(p.dashDir, p.animT, 15), p.x + Math.cos(p.dashDir) * 14, p.y + Math.sin(p.dashDir) * 14);
     }
   }
 
   renderBullets() {
     for (const b of this.world.bullets) {
       const sheet = S(b.spec.sheet);
-      const frame = b.spec.rotated ? dirFrame(b.heading) : sheet.frameAt(b.t, b.spec.fps || 12);
+      const fps = b.spec.fps || 12;
+      // pre-rotated sheets pick their frame by heading so the projectile points
+      // where it flies; the rest have one baked-in orientation and just animate
+      const frame = sheet.meta.dirs ? sheet.dirAt(b.heading, b.t, fps) : sheet.frameAt(b.t, fps);
       sheet.draw(frame, b.x, b.y, { scale: b.spec.scale });
     }
   }

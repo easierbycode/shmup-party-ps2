@@ -8,10 +8,26 @@ export const SHEETS = {
     "fw": 72
   },
   "barrier": {
-    "count": 8,
-    "fh": 41,
+    "anim": 2,
+    "cols": 8,
+    "count": 32,
+    "dirs": 16,
+    "fh": 90,
     "file": "assets/barrier.png",
-    "fw": 80
+    "fw": 90,
+    "rotated": true
+  },
+  "beetle": {
+    "count": 8,
+    "fh": 72,
+    "file": "assets/beetle.png",
+    "fw": 72
+  },
+  "beetle-gib": {
+    "count": 3,
+    "fh": 22,
+    "file": "assets/beetle_gib.png",
+    "fw": 28
   },
   "blood-splat": {
     "count": 5,
@@ -62,10 +78,26 @@ export const SHEETS = {
     "fw": 32
   },
   "ciga": {
-    "count": 2,
-    "fh": 12,
+    "anim": 2,
+    "cols": 16,
+    "count": 32,
+    "dirs": 16,
+    "fh": 16,
     "file": "assets/ciga.png",
-    "fw": 9
+    "fw": 16,
+    "rotated": true
+  },
+  "crabfly": {
+    "count": 8,
+    "fh": 62,
+    "file": "assets/crabfly.png",
+    "fw": 62
+  },
+  "crabfly-die": {
+    "count": 8,
+    "fh": 62,
+    "file": "assets/crabfly_die.png",
+    "fw": 62
   },
   "eye-explode": {
     "count": 12,
@@ -82,8 +114,10 @@ export const SHEETS = {
     "fw": 9
   },
   "ion": {
+    "anim": 1,
     "cols": 8,
     "count": 16,
+    "dirs": 16,
     "fh": 64,
     "file": "assets/ion.png",
     "fw": 64,
@@ -102,14 +136,20 @@ export const SHEETS = {
     "fw": 13
   },
   "pacman": {
-    "count": 3,
+    "anim": 3,
+    "cols": 16,
+    "count": 48,
+    "dirs": 16,
     "fh": 32,
     "file": "assets/pacman.png",
-    "fw": 32
+    "fw": 32,
+    "rotated": true
   },
   "player": {
+    "anim": 1,
     "cols": 8,
     "count": 16,
+    "dirs": 16,
     "fh": 72,
     "file": "assets/player.png",
     "fw": 72,

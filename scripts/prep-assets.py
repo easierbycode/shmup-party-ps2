@@ -29,6 +29,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT.parent / "shmup-party-sp" / "public" / "assets"
+# Crimsonland Android rips (loose per-frame PNGs): beetle, crabfly, …
+CRIMSON = Path(sys.argv[2]) if len(sys.argv) > 2 else (
+    Path.home() / "Downloads" / "CRIMSONLAND_ANDROID_EXTRACTED_ASSETS"
+    / "CRIMSONLAND_ANDROID_EXTRACTED_ASSETS" / "creatures"
+)
 OUT = ROOT / "ps2" / "assets"
 FONT_TTF = ROOT / "scripts" / "ShareTechMono-Regular.ttf"
 
@@ -66,24 +71,77 @@ def repack_atlas(name, prefix, picks, out=None):
     sheets[out] = {"file": f"assets/{out_file(out)}", "fw": cw, "fh": ch, "count": len(picks)}
 
 
-def rotations(src_name, out_name, cell, base_angle):
-    """16 pre-rotated frames, 8 cols x 2 rows. Frame i points along heading
-    i*22.5 deg (screen coords, clockwise from east). base_angle is the
-    heading the source art natively faces."""
-    img = Image.open(SRC / src_name).convert("RGBA")
-    canvas = Image.new("RGBA", (cell, cell), (0, 0, 0, 0))
-    canvas.paste(img, ((cell - img.width) // 2, (cell - img.height) // 2))
+DIRS = 16  # rotation steps; 360/16 = 22.5 deg, matching util.js dirFrame()
 
-    grid = Image.new("RGBA", (cell * 8, cell * 2), (0, 0, 0, 0))
-    for i in range(16):
-        rot = canvas.rotate(-(i * 22.5 - base_angle), resample=Image.BICUBIC)
-        grid.paste(rot, ((i % 8) * cell, (i // 8) * cell))
+
+def rotations(src_name, out_name, cell, base_angle, fw=None, fh=None, frames=None, cols=8):
+    """DIRS pre-rotated directions for each animation frame, laid out row-major
+    across `cols` columns: sheet frame index = anim * DIRS + direction, so
+    direction d points along heading d*22.5 deg (screen coords, clockwise from
+    east). base_angle is the heading the source art natively faces.
+
+    `fw`/`fh` size one cell of a source *strip* and default to the whole image;
+    `frames` picks which of those cells to pre-rotate (default: all of them).
+    Passing a strip without fw/fh silently centre-crops it to `cell` — that is
+    what turned ion.png (4 frames of 48x30) into 16 rotations of two half
+    frames welded together, so always state the source cell size for a strip.
+
+    `cols` only shapes the grid; keep cell*cols and cell*rows <= 1024, the GS
+    texture limit (that is why player stays 8 wide: 16*72 would be 1152)."""
+    img = Image.open(SRC / src_name).convert("RGBA")
+    fw = fw or img.width
+    fh = fh or img.height
+    frames = list(range(img.width // fw)) if frames is None else list(frames)
+    rows = math.ceil(len(frames) * DIRS / cols)
+
+    grid = Image.new("RGBA", (cell * cols, cell * rows), (0, 0, 0, 0))
+    for a, f in enumerate(frames):
+        canvas = Image.new("RGBA", (cell, cell), (0, 0, 0, 0))
+        canvas.paste(img.crop((f * fw, 0, (f + 1) * fw, fh)),
+                     ((cell - fw) // 2, (cell - fh) // 2))
+        for d in range(DIRS):
+            rot = canvas.rotate(-(d * 22.5 - base_angle), resample=Image.BICUBIC)
+            i = a * DIRS + d
+            grid.paste(rot, ((i % cols) * cell, (i // cols) * cell))
 
     grid.save(OUT / out_file(out_name))
     sheets[out_name] = {
         "file": f"assets/{out_file(out_name)}", "fw": cell, "fh": cell,
-        "count": 16, "cols": 8, "rotated": True,
+        "count": len(frames) * DIRS, "cols": cols, "rotated": True,
+        "dirs": DIRS, "anim": len(frames),
     }
+
+
+def crimson_strip(out, subdir, pattern, picks):
+    """Pack loose Crimsonland frame files (pattern % n) into an untrimmed strip."""
+    frames = [Image.open(CRIMSON / subdir / (pattern % n)).convert("RGBA") for n in picks]
+    cw = max(f.width for f in frames)
+    ch = max(f.height for f in frames)
+    strip = Image.new("RGBA", (cw * len(frames), ch), (0, 0, 0, 0))
+    for i, f in enumerate(frames):
+        strip.paste(f, (i * cw + (cw - f.width) // 2, (ch - f.height) // 2))
+    strip.save(OUT / out_file(out))
+    sheets[out] = {"file": f"assets/{out_file(out)}", "fw": cw, "fh": ch, "count": len(picks)}
+
+
+def crimson_gibs(out, subdir, pattern, picks):
+    """Debris strip for a death particle burst: each source frame is mostly
+    empty 72x72 with the bodypart off-center, so trim to the alpha bbox and
+    re-center in a uniform cell — gibs spawn at the corpse and must not carry
+    the source frame's offset."""
+    parts = []
+    for n in picks:
+        img = Image.open(CRIMSON / subdir / (pattern % n)).convert("RGBA")
+        parts.append(img.crop(img.getbbox()))
+    cw = max(p.width for p in parts)
+    ch = max(p.height for p in parts)
+    cw += cw % 2
+    ch += ch % 2
+    strip = Image.new("RGBA", (cw * len(parts), ch), (0, 0, 0, 0))
+    for i, p in enumerate(parts):
+        strip.paste(p, (i * cw + (cw - p.width) // 2, (ch - p.height) // 2))
+    strip.save(OUT / out_file(out))
+    sheets[out] = {"file": f"assets/{out_file(out)}", "fw": cw, "fh": ch, "count": len(parts)}
 
 
 def font_sheet():
@@ -115,11 +173,8 @@ def background():
 COPIES = {
     "logo": ("logo.png", None, None),
     "ion-impact": ("ion-impact.png", 18, 22),
-    "pacman": ("pacman-spritesheet.png", 32, 32),
     "pac-ghost": ("pac-ghost.png", 13, 14),
-    "ciga": ("ciga-bullet.png", 9, 12),
     "smoke": ("smoke.png", 26, 33),
-    "barrier": ("barrier.png", 80, 41),
     "blood-splat": ("blood-splat.png", 137, 136),
     "bullet": ("bullet.png", 12, 11),
     "chomp-ball": ("chomp-ball.png", 32, 32),
@@ -167,7 +222,9 @@ def emit_js():
     ]
     gen = ROOT / "ps2" / "data"
     gen.mkdir(parents=True, exist_ok=True)
-    (gen / "sheets.js").write_text("\n".join(lines))
+    # explicit utf-8: write_text() defaults to the system codepage, which
+    # mangles the em-dash in the banner when this runs on Windows
+    (gen / "sheets.js").write_text("\n".join(lines), encoding="utf-8")
 
 
 picks = [1, 9, 17, 25, 33, 41, 49, 57]
@@ -176,8 +233,28 @@ repack_atlas("alien", "move-", picks)
 # spider2 frames 64 are 64x64 cells (all others 72x72) — picks avoid them
 repack_atlas("spider2", "move-", picks, out="spider")
 repack_atlas("spider2", "die-", picks, out="spider-die")
+if CRIMSON.is_dir():
+    crimson_strip("beetle", "beetle", "move-%04d.png", picks)
+    crimson_gibs("beetle-gib", "beetle", "bodypart-unique-%04d.png", [1, 2, 3])
+    crimson_strip("crabfly", "crabfly", "crabfly-move-%04d.png", [0, 2, 4, 6, 8, 10, 12, 14])
+    crimson_strip("crabfly-die", "crabfly", "crabfly-die-%04d.png", list(range(8)))
+else:
+    print(f"[prep-assets] WARNING: {CRIMSON} not found — skipping beetle/crabfly")
 rotations("player.png", "player", 72, 0)
-rotations("ion.png", "ion", 64, 180)
+# every projectile that reads as pointing somewhere needs direction frames, or
+# it flies sideways: the ion bolt's burst leads and its tail streams behind,
+# the cigarette leads with its sunglasses, pacman chomps forward. bullet.png is
+# a round glow — symmetric, so it stays a plain 2-frame strip. ion only
+# pre-rotates its longest streak: renderBullets() picks the frame by heading,
+# so the 4-frame charge-up was never played anyway. base angles are what
+# playtesting proved out — front leads, not trails.
+rotations("ion.png", "ion", 64, 180, fw=48, fh=30, frames=[3])
+rotations("ciga-bullet.png", "ciga", 16, 90, fw=9, fh=12, cols=16)
+rotations("pacman-spritesheet.png", "pacman", 32, 0, fw=32, fh=32, cols=16)
+# the dash barrier swings to whatever direction the dash travels. Two of its
+# eight shimmer frames keep the crackle; 90px cells fit the 80x41 arc's
+# rotation diagonal (hypot = 89.9)
+rotations("barrier.png", "barrier", 90, 0, fw=80, fh=41, frames=[0, 4])
 font_sheet()
 background()
 copies()

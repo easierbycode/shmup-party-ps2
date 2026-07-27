@@ -7,6 +7,8 @@
 // 5velte-ps2 shim reads the same properties). Natural texture size is
 // captured at construction because width/height double as the dest size.
 
+import { dirFrame } from 'lib/util.js';
+
 export class Sheet {
   constructor(meta) {
     this.meta = meta;
@@ -43,6 +45,17 @@ export class Sheet {
   /** frame index for a looping animation clock (seconds) */
   frameAt(t, fps) {
     return Math.floor(t * fps) % this.meta.count;
+  }
+
+  /**
+   * Frame index for a pre-rotated sheet (meta.dirs directions x meta.anim
+   * animation rows, laid out as anim * dirs + direction by prep-assets.py).
+   * Sheets without meta.dirs have one baked-in orientation — use frameAt.
+   */
+  dirAt(heading, t, fps) {
+    const anim = this.meta.anim || 1;
+    const a = anim > 1 ? Math.floor(t * fps) % anim : 0;
+    return a * this.meta.dirs + dirFrame(heading);
   }
 }
 
