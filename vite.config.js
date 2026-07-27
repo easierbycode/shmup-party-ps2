@@ -12,7 +12,10 @@ export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production'
 
   return {
-    base: isProduction ? '/shmup-party-ps2/' : '/',
+    // GitHub Pages serves this at /shmup-party-ps2/, but the build is also
+    // vendored into other hosts (the cmg launcher mounts it under
+    // /games/shmup-party-ps2/), so allow the mount point to be overridden.
+    base: process.env.BASE_PATH || (isProduction ? '/shmup-party-ps2/' : '/'),
     plugins: [svelte()],
     resolve: {
       dedupe: ['phaser', 'svelte'],
