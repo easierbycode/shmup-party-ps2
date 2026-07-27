@@ -72,12 +72,26 @@ export const POWERUPS = {
   speedMult: 1.8,
   speedTime: 7,
   giantTime: 7,
+  giantScale: 2,       // player draw + hitbox multiplier while giant
+  giantTouchDps: 400,  // damage/sec dealt to anything the giant player touches
   nukeDamage: 400,
   nukeRadius: 320,
   nukeTime: 0.75,
   fireblastCount: 16,
   fireblastDmg: 60,
   fireblastSpeed: 400,
+};
+
+// DualShock 2 rumble pulses (lib/haptics.js). big: 0-255 motor intensity
+// (the DS2 big motor barely spins below ~100); small: on/off; time: seconds.
+export const HAPTICS = {
+  hurt: { big: 200, small: 1, time: 0.25 },
+  death: { big: 255, small: 1, time: 0.8 },
+  dash: { big: 0, small: 1, time: 0.1 },
+  pickup: { big: 0, small: 1, time: 0.06 },
+  nuke: { big: 255, small: 0, time: 0.5 },
+  bossIncoming: { big: 130, small: 0, time: 0.6 },
+  bossDown: { big: 255, small: 1, time: 0.9 },
 };
 
 export const PERKS = [

@@ -6,6 +6,7 @@
 import { PLAYER, WEAPONS, WAVE, POWERUPS, PERKS, XP_PER_LEVEL, BOSS } from 'data/tuning.js';
 import { S, P } from 'lib/sprites.js';
 import { fx, updateFx, renderFx } from 'lib/fx.js';
+import { buzz, updateHaptics, stopHaptics } from 'lib/haptics.js';
 import { screens } from 'lib/screens.js';
 import { pollPad, connectedPorts } from 'lib/input.js';
 import { buildWave, spawnEnemy, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
@@ -86,6 +87,10 @@ export default class GameScreen {
     this.nextWave();
   }
 
+  onExit() {
+    stopHaptics();
+  }
+
   join(port) {
     if (this.joined.has(port)) return;
     this.joined.add(port);
@@ -103,6 +108,7 @@ export default class GameScreen {
     w.breatherT = 0;
     if (w.wave % WAVE.bossEvery === 0) {
       this.banner('BOSS INCOMING!', RED());
+      for (const p of w.players) if (p.alive) buzz(p.port, 'bossIncoming');
       w.pending = [];
       w.waveTotal = 1;
       w.bossPendingT = 1.6;
@@ -118,6 +124,7 @@ export default class GameScreen {
     w.boss = null;
     w.flashT = 0.5;
     fx(w, 'eye-explode', SCREEN_W / 2, 120, { fps: 12, scale: 3 });
+    for (const p of w.players) if (p.alive) buzz(p.port, 'bossDown');
     for (const p of w.players) if (p.alive) p.xp += BOSS.xp;
     w.waveKills = w.waveTotal;
     w.breatherT = WAVE.breather;
@@ -128,6 +135,10 @@ export default class GameScreen {
 
   update(dt) {
     const w = this.world;
+
+    // runs before the pause/perk/game-over early returns so in-flight
+    // rumble pulses always decay instead of sticking on
+    updateHaptics(dt);
 
     // controller hotplug (a second PS2 pad joins mid-run)
     for (const port of connectedPorts()) this.join(port);
@@ -252,6 +263,7 @@ export default class GameScreen {
       }
     } else {
       if (pad.just(Pads.L1) && p.dashCd <= 0) {
+        buzz(p.port, 'dash');
         p.dashT = PLAYER.dash.time;
         p.dashCd = PLAYER.dash.cooldown;
         p.dashDir = p.heading;
@@ -304,11 +316,18 @@ export default class GameScreen {
     }
     if (firing && p.cooldown <= 0 && p.dashT <= 0) this.fire(p);
 
-    // enemy contact damage
-    if (p.invulnT <= 0) {
+    // enemy contact: while giant the player is untouchable and poisonous —
+    // anything that runs into them melts instead of landing a hit
+    if (p.giantT > 0) {
+      const r = PLAYER.radius * POWERUPS.giantScale;
+      for (const e of [...w.enemies]) {
+        if (hit(p, e, r, e.radius)) {
+          damageEnemy(w, e, POWERUPS.giantTouchDps * p.perkDmg * dt, p);
+        }
+      }
+    } else if (p.invulnT <= 0) {
       for (const e of w.enemies) {
-        const giant = p.giantT > 0 ? 2 : 1;
-        if (hit(p, e, PLAYER.radius * giant, e.radius)) {
+        if (hit(p, e, PLAYER.radius, e.radius)) {
           this.hurtPlayer(p, e.x, e.y);
           break;
         }
@@ -327,6 +346,7 @@ export default class GameScreen {
 
   hurtPlayer(p, fromX, fromY) {
     p.hp--;
+    buzz(p.port, p.hp <= 0 ? 'death' : 'hurt');
     const ang = Math.atan2(p.y - fromY, p.x - fromX);
     p.kbx = Math.cos(ang) * PLAYER.knockback;
     p.kby = Math.sin(ang) * PLAYER.knockback;
@@ -399,7 +419,7 @@ export default class GameScreen {
       let dead = b.x < -20 || b.x > SCREEN_W + 20 || b.y < -20 || b.y > SCREEN_H + 20;
       if (!dead) {
         for (const p of w.players) {
-          if (!p.alive || p.invulnT > 0) continue;
+          if (!p.alive || p.invulnT > 0 || p.giantT > 0) continue;
           if (hit(b, p, BOSS.bulletRadius, PLAYER.radius)) {
             this.hurtPlayer(p, b.x, b.y);
             dead = true;
@@ -432,6 +452,7 @@ export default class GameScreen {
 
   applyPowerup(p, pu) {
     const w = this.world;
+    buzz(p.port, 'pickup');
     switch (pu.type) {
       case 'speed':
         p.speedT = POWERUPS.speedTime;
@@ -445,6 +466,8 @@ export default class GameScreen {
       case 'nuke':
         w.nukes.push({ x: pu.x, y: pu.y, t: 0, hits: new Set() });
         w.flashT = 0.4;
+        // the blast fills the arena, so everyone feels it
+        for (const q of w.players) if (q.alive) buzz(q.port, 'nuke');
         break;
       case 'fireblast': {
         const spec = WEAPONS[0];
@@ -543,8 +566,14 @@ export default class GameScreen {
     if (!p.alive) return;
     // invulnerability blink
     if (p.invulnT > 0 && p.dashT <= 0 && Math.floor(p.invulnT * 12) % 2 === 0) return;
-    const scale = p.giantT > 0 ? 2 : 1;
-    const color = p.invulnT > 0 && p.dashT <= 0 ? Color.new(255, 90, 90, 128) : undefined;
+    const scale = p.giantT > 0 ? POWERUPS.giantScale : 1;
+    // hurt blink wins over the giant tint; alpha 128 is Athena's neutral
+    // multiplier, so these only shift hue, not opacity
+    const color = p.invulnT > 0 && p.dashT <= 0
+      ? Color.new(255, 90, 90, 128)
+      : p.giantT > 0
+        ? Color.new(110, 255, 120, 128)
+        : undefined;
     S('player').draw(dirFrame(p.heading), p.x, p.y, { scale, color });
 
     if (p.dashT > 0) {

@@ -71,6 +71,9 @@ export function makeMultiPads(source: WebPadSource) {
     getConnected() {
       return source.connectedPorts()
     },
+    rumble(port: number, big: number, small: number) {
+      source.rumbleAt(port, big, small)
+    },
     getConnectedCount() {
       return source.connectedPorts().length
     },

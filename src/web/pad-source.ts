@@ -164,6 +164,29 @@ export class WebPadSource implements PadSource {
     return this.state[port]?.[name] ?? 0
   }
 
+  /** AthenaEnv Pads.rumble semantics: big is 0-255 intensity, small on/off */
+  rumbleAt(port: number, big: number, small: number) {
+    const index = this.slots[port]
+    if (index === null || index === undefined) return
+    // Gamepad objects are per-poll snapshots in Chrome, so fetch a live one
+    const pad = navigator.getGamepads?.()[index]
+    const actuator = pad?.vibrationActuator
+    if (!actuator) return
+    if (big > 0 || small) {
+      // the game (ps2/lib/haptics.js) re-sends on change and sends an
+      // explicit 0,0 stop, so the duration only has to outlive a pulse
+      actuator
+        .playEffect('dual-rumble', {
+          duration: 2000,
+          strongMagnitude: Math.min(1, Math.max(0, big / 255)),
+          weakMagnitude: small ? 0.7 : 0,
+        })
+        .catch(() => {})
+    } else {
+      actuator.reset().catch(() => {})
+    }
+  }
+
   // PadSource contract — the host's single-port view, which is port 0.
   held(mask: number) {
     return this.heldAt(0, mask)

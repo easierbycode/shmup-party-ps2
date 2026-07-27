@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
     // vendored into other hosts (the cmg launcher mounts it under
     // /games/shmup-party-ps2/), so allow the mount point to be overridden.
     base: process.env.BASE_PATH || (isProduction ? '/shmup-party-ps2/' : '/'),
+    // honour an assigned dev port (tooling sets PORT to run parallel servers)
+    server: { port: Number(process.env.PORT) || 5173 },
     plugins: [svelte()],
     resolve: {
       dedupe: ['phaser', 'svelte'],
