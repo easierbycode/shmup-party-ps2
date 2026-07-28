@@ -26,6 +26,7 @@ const POWERUP_PICS = {
   boost: 'powerup-boost',
   medikit: 'powerup-medikit',
   nuke: 'powerup-nuke',
+  freeze: 'powerup-freeze',
 };
 
 function makePlayer(port, index) {
@@ -84,6 +85,7 @@ export default class GameScreen {
       paused: false,
       overT: 0,
       flashT: 0,
+      freezeT: 0,
       perkQueue: [],
       perkOpen: null,
       onBossDefeated: () => this.bossDefeated(),
@@ -191,6 +193,7 @@ export default class GameScreen {
       if (w.banner.t > 3.2) w.banner = null;
     }
     if (w.flashT > 0) w.flashT -= dt;
+    if (w.freezeT > 0) w.freezeT -= dt;
 
     this.updateSpawning(dt);
     for (const p of w.players) this.updatePlayer(p, dt);
@@ -528,6 +531,11 @@ export default class GameScreen {
         // re-collecting refreshes the duration rather than stacking a second ball
         p.chompT = POWERUPS.chompTime;
         p.chompHits = new Map();
+        break;
+      case 'freeze':
+        // world-level, not per-player: the whole horde (and the boss) locks
+        // up for everyone. Re-collecting refreshes the clock.
+        w.freezeT = POWERUPS.freezeTime;
         break;
       case 'nuke':
         w.nukes.push({ x: pu.x, y: pu.y, t: 0, hits: new Set() });

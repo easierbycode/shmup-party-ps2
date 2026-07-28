@@ -5,7 +5,7 @@
 import { BOSS } from 'data/tuning.js';
 import { S } from 'lib/sprites.js';
 import { fx } from 'lib/fx.js';
-import { nearestPlayer } from 'lib/enemies.js';
+import { nearestPlayer, freezeTint } from 'lib/enemies.js';
 import { SCREEN_W } from 'lib/util.js';
 
 // part layout in unscaled container coords (from the original's constructor)
@@ -96,6 +96,10 @@ export class Boss {
   }
 
   update(dt) {
+    // freeze powerup locks the brain too — jaw, blink and fire cycle all
+    // stop. The death sequence still runs so a kill can't stall, and a
+    // shieldActive boss (the future spiderBoss) would shrug it off.
+    if (this.world.freezeT > 0 && !this.shieldActive && this.dying <= 0) return;
     this.animT += dt;
     for (const eye of this.eyes) {
       if (eye.blinkT > 0) eye.blinkT -= dt;
@@ -153,8 +157,9 @@ export class Boss {
     const blinkOut = this.dying > 0 && Math.floor(this.dying * 16) % 2 === 0;
     if (blinkOut) return;
 
-    topSheet.draw(topSheet.frameAt(this.animT, 1), this.x + (TOP.x + TOP.w / 2) * k, this.y + (TOP.y + TOP.h / 2) * k, { scale: k });
-    bottomSheet.draw(bottomSheet.frameAt(this.animT, 1), this.x + (BOTTOM.x + BOTTOM.w / 2) * k, this.y + (BOTTOM.y + BOTTOM.h / 2) * k, { scale: k });
+    const ice = this.shieldActive ? undefined : freezeTint(this.world);
+    topSheet.draw(topSheet.frameAt(this.animT, 1), this.x + (TOP.x + TOP.w / 2) * k, this.y + (TOP.y + TOP.h / 2) * k, { scale: k, color: ice });
+    bottomSheet.draw(bottomSheet.frameAt(this.animT, 1), this.x + (BOTTOM.x + BOTTOM.w / 2) * k, this.y + (BOTTOM.y + BOTTOM.h / 2) * k, { scale: k, color: ice });
 
     const target = nearestPlayer(this.world, this.centerX(), this.centerY());
     for (const eye of this.eyes) {
@@ -166,7 +171,7 @@ export class Boss {
       else if (target.x < this.x) frame = eye.flip ? 3 : 1;
       else if (target.x > this.x + this.w) frame = eye.flip ? 1 : 3;
       else frame = 2;
-      eyeSheet.draw(frame, c.x, c.y, { scale: k, flipX: eye.flip });
+      eyeSheet.draw(frame, c.x, c.y, { scale: k, flipX: eye.flip, color: ice });
     }
 
     if (this.prefire) {

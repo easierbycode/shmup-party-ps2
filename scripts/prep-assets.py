@@ -196,6 +196,7 @@ COPIES = {
     "powerup-nuke": ("powerup-nuke.png", None, None),
     "powerup-fireblast": ("powerup-fireblast.png", None, None),
     "powerup-boost": ("powerup-weapon-boost.png", None, None),
+    "powerup-freeze": ("powerup-freeze.png", None, None),
     "perk-speed": ("perk-speed.png", None, None),
     "perk-fire-rate": ("perk-fire-rate.png", None, None),
     "perk-damage": ("perk-damage.png", None, None),

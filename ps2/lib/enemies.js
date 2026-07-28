@@ -74,6 +74,10 @@ export function spawnEnemy(world, desc) {
 
 export function updateEnemies(world, dt) {
   for (const e of world.enemies) {
+    // freeze powerup: everything locks mid-stride (animT stops too, so the
+    // walk cycle holds its frame). shieldActive enemies are exempt — none
+    // set it yet; the spiderBoss will when its shield is up.
+    if (world.freezeT > 0 && !e.shieldActive) continue;
     if (e.type === 'spider') {
       updateSpider(world, e, dt);
       continue;
@@ -148,11 +152,23 @@ function updateCrabfly(world, e, dt) {
   e.y += ((dy / d) * e.speed + (dx / d) * wob) * dt;
 }
 
+/** ice tint while the freeze powerup runs; blinks off during the last second
+    so the thaw telegraphs. undefined = draw untinted. */
+export function freezeTint(world) {
+  if (!(world.freezeT > 0)) return undefined;
+  if (world.freezeT < 1 && Math.floor(world.freezeT * 8) % 2 === 0) return undefined;
+  return Color.new(120, 200, 255, 128);
+}
+
 export function renderEnemies(world) {
+  const ice = freezeTint(world);
   for (const e of world.enemies) {
     const sheet = S(e.type);
     const meta = ENEMIES[e.type];
-    sheet.draw(sheet.frameAt(e.animT, meta.anim), e.x, e.y, { flipX: e.facingLeft });
+    sheet.draw(sheet.frameAt(e.animT, meta.anim), e.x, e.y, {
+      flipX: e.facingLeft,
+      color: e.shieldActive ? undefined : ice,
+    });
   }
 }
 

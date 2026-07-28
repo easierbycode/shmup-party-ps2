@@ -68,7 +68,7 @@ export const POWERUPS = {
   dropChance: 0.2,
   lifespan: 12,
   radius: 18,
-  types: ['speed', 'fireblast', 'boost', 'medikit', 'nuke', 'chomp'],
+  types: ['speed', 'fireblast', 'boost', 'medikit', 'nuke', 'chomp', 'freeze'],
   speedMult: 1.8,
   speedTime: 7,
   giantTime: 7,
@@ -92,6 +92,10 @@ export const POWERUPS = {
   chompBallRadius: 16,
   chompDamage: 300,     // one-shots zombies and aliens, as in the original
   chompHit: 0.25,       // seconds before the same target can be hit again
+  // freeze: locks the whole horde (and the boss) in place. Enemies with an
+  // active shield (shieldActive — none yet; the spiderBoss will have one)
+  // shrug it off. Frozen targets still take damage and still hurt on touch.
+  freezeTime: 5,
 };
 
 // DualShock 2 rumble pulses (lib/haptics.js). big: 0-255 motor intensity
