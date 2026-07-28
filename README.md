@@ -55,10 +55,14 @@ Waves, perks, powerups, the barrier dash and the Evil Brain boss are ported
 from the Phaser original's scenes/game-objects, retuned for a single-screen
 640x448 arena (the original plays on a 1680x1050 scrolling world).
 
-Weapon sfx come from the original's `assets/sfx` mp3 pack, converted by
+Sfx come from the original's `assets/sfx` mp3 pack, the Crimsonland rip's own
+`sfx` folder, and `scripts/sfx` for one-offs (PAC fires the arcade coin
+jingle), converted by
 `prep-assets.py` into audsrv ADPCM (`.adp`, played through AthenaEnv's
 `Sound.Sfx` — `audsrv = true` in [`ps2/athena.ini`](ps2/athena.ini)) plus a
 `.wav` twin the browser build plays through a Phaser-backed `Sound` shim
 ([`src/web/sound-shim.ts`](src/web/sound-shim.ts)).
 [`ps2/lib/audio.js`](ps2/lib/audio.js) owns the bank, volumes and the
 per-effect spam throttle; every call no-ops on hosts without the Sound API.
+Death splats get their own pair of takes, alternated so a kill streak doesn't
+sound like one sample stuttering.

@@ -22,6 +22,7 @@ platforms). Rerun after changing source art:
 
 import json
 import math
+import shutil
 import struct
 import subprocess
 import sys
@@ -224,16 +225,27 @@ def copies():
 SFX = {
     "ion_fire": "shock_fire.mp3",
     "ciga_fire": "flamer_fire_01.mp3",
-    "pac_fire": "plasmaShotgun_fire.mp3",
+    # PAC fires the arcade coin-insert jingle
+    "pac_fire": "credit.wav",
     "dash": "shockwave.mp3",
     "fireblast": "explosion_medium.mp3",
     "switch": "ui_clink_01.mp3",
+    "button_press": "button-press.wav",
     "ion_hit": "shock_hit_01.mp3",
     "ciga_hit": "bullet_hit_01.mp3",
     "pac_hit": "bullet_hit_02.mp3",
+    # two takes so a stream of kills doesn't sound like one sample on repeat
+    "blood_01": "bloodSpill_01.wav",
+    "blood_02": "bloodSpill_02.wav",
 }
 
-FFMPEG = Path("/opt/homebrew/bin/ffmpeg")
+# sources are looked up in order: this repo's own scripts/sfx (one-offs that
+# aren't in either pack, e.g. the coin jingle), then the original's mp3 pack,
+# then the Crimsonland rip's sfx folder (sibling of CRIMSON's creatures dir),
+# where the blood spills and the UI button press live
+SFX_DIRS = (ROOT / "scripts" / "sfx", SRC / "sfx", CRIMSON.parent / "sfx")
+
+FFMPEG = Path(shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg")
 SFX_RATE = 22050
 
 # SPU2 ADPCM filter predictors, from ps2sdk tools/adpenc/src/adpcm.c
@@ -247,13 +259,18 @@ SPU_F = (
 )
 
 
+def find_sfx(name):
+    for d in SFX_DIRS:
+        if (d / name).exists():
+            return d / name
+    sys.exit(f"[prep-assets] missing source sfx: {name} (looked in {', '.join(map(str, SFX_DIRS))})")
+
+
 def wav_from_mp3(src, dst):
     """mp3 -> mono 16-bit 22050 Hz WAV via ffmpeg, then verify the header
     is the canonical 44-byte layout with the data chunk at offset 36
     (AthenaEnv's Sound.Stream hard-seeks PCM past a fixed-size header, so
     a LIST/metadata chunk would corrupt playback). Returns the PCM body."""
-    if not src.exists():
-        sys.exit(f"[prep-assets] missing source sfx: {src}")
     subprocess.run(
         [str(FFMPEG), "-hide_banner", "-loglevel", "error", "-y",
          "-i", str(src), "-ac", "1", "-ar", str(SFX_RATE),
@@ -372,7 +389,7 @@ def sfx():
     sfx_out = OUT / "sfx"
     sfx_out.mkdir(parents=True, exist_ok=True)
     for name, src in SFX.items():
-        pcm = wav_from_mp3(SRC / "sfx" / src, sfx_out / f"{name}.wav")
+        pcm = wav_from_mp3(find_sfx(src), sfx_out / f"{name}.wav")
         adp_from_pcm(pcm, sfx_out / f"{name}.adp")
         print(f"  {name:16s} {len(pcm) // 2} samples @ {SFX_RATE} Hz  <- {src}")
 

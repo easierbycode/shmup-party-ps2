@@ -1,10 +1,14 @@
 // Play-once sprite effects (blood splats, bullet impacts, explosions) and
 // gib particles (debris that flies out, slows down and fades).
 
+import { sfxBlood } from 'lib/audio.js';
 import { S } from 'lib/sprites.js';
 import { rand, randInt } from 'lib/util.js';
 
 export function fx(world, sheet, x, y, opts = {}) {
+  // the splat is the death sound, so it lives with the animation rather than
+  // at each of the three spawn sites (enemy death, player death, dying boss)
+  if (sheet === 'blood-splat') sfxBlood();
   world.effects.push({
     sheet,
     x,

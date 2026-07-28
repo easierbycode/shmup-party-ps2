@@ -585,6 +585,7 @@ export default class GameScreen {
     if (pad.just(Pads.LEFT)) w.perkOpen.idx = (w.perkOpen.idx + PERKS.length - 1) % PERKS.length;
     if (pad.just(Pads.RIGHT)) w.perkOpen.idx = (w.perkOpen.idx + 1) % PERKS.length;
     if (pad.just(Pads.CROSS) || pad.just(Pads.START)) {
+      sfx('button_press');
       const perk = PERKS[w.perkOpen.idx];
       if (perk.type === 'speed') p.perkSpeed *= 1.2;
       else if (perk.type === 'fireRate') p.perkRate *= 0.8;

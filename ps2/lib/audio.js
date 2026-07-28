@@ -18,6 +18,9 @@ const BANK = {
   dash: 50,
   fireblast: 60,
   switch: 40,
+  button_press: 45,
+  blood_01: 45,
+  blood_02: 45,
 };
 
 const MIN_GAP = 0.06; // seconds between plays of the same effect (spam guard)
@@ -37,6 +40,15 @@ export function initAudio() {
 /** call once per frame from the active screen's update */
 export function tickAudio(dt) {
   clock += dt;
+}
+
+let bloodTake = 0;
+
+/** the blood splat's two takes, alternating — back-to-back kills would sound
+    like one sample stuttering otherwise (and each take keeps its own MIN_GAP
+    slot, so a fast kill streak still gets a sound per splat) */
+export function sfxBlood() {
+  sfx(bloodTake++ & 1 ? 'blood_02' : 'blood_01');
 }
 
 export function sfx(name) {

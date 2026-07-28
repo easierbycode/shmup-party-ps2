@@ -3,6 +3,7 @@
 // trimmed to the survival mode the port ships.
 
 import { screens } from 'lib/screens.js';
+import { sfx, tickAudio } from 'lib/audio.js';
 import { pollPad, connectedPorts } from 'lib/input.js';
 import { P } from 'lib/sprites.js';
 import { drawTextCentered } from 'lib/text.js';
@@ -18,9 +19,11 @@ export default class TitleScreen {
 
   update(dt) {
     this.t += dt;
+    tickAudio(dt); // the sfx throttle's clock only advances while a screen ticks
     for (const port of connectedPorts()) {
       const pad = pollPad(port);
       if (pad.just(Pads.START) || pad.just(Pads.CROSS)) {
+        sfx('button_press');
         screens.change('game');
         return;
       }
