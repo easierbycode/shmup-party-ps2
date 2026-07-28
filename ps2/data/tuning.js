@@ -37,6 +37,16 @@ export const ENEMIES = {
     hp: 130, speed: 150, radius: 12, anim: 20, xp: 15,
     weave: { freq: 2.4, amp: 95 },
   },
+  // den-hatched swarmer: quick and fragile, worth crumbs — the den it pours
+  // out of is the real target
+  lizard: { hp: 90, speed: 135, radius: 11, anim: 16, xp: 5 },
+  // stationary spawner, placed on the arena floor at wave start: hatches a
+  // lizard every spawn.every seconds until spawn.maxAlive of its brood are
+  // up, and replaces losses until the den itself is destroyed
+  'lizard-den': {
+    hp: 800, speed: 0, radius: 22, anim: 8, xp: 50,
+    spawn: { every: 2.8, maxAlive: 4 },
+  },
 };
 
 export const WAVE = {
@@ -45,6 +55,8 @@ export const WAVE = {
   spiderWave: 3,       // first wave spiders can appear
   beetleWave: 4,       // first wave beetles can appear
   crabflyWave: 5,      // first wave crabflies can appear
+  denWave: 4,          // first wave lizard dens can appear
+  denMax: 3,           // alive-den cap (survivors carry over between waves)
   maxAlive: 24,
   trickle: 0.35,       // seconds between deferred spawns once at maxAlive
   clearRatio: 0.9,     // wave ends when 90% are down (as in the original)

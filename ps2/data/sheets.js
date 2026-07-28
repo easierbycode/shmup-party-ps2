@@ -129,6 +129,30 @@ export const SHEETS = {
     "file": "assets/ion_impact.png",
     "fw": 18
   },
+  "lizard": {
+    "count": 8,
+    "fh": 72,
+    "file": "assets/lizard.png",
+    "fw": 72
+  },
+  "lizard-den": {
+    "count": 8,
+    "fh": 72,
+    "file": "assets/lizard_den.png",
+    "fw": 72
+  },
+  "lizard-den-die": {
+    "count": 8,
+    "fh": 72,
+    "file": "assets/lizard_den_die.png",
+    "fw": 72
+  },
+  "lizard-die": {
+    "count": 8,
+    "fh": 72,
+    "file": "assets/lizard_die.png",
+    "fw": 72
+  },
   "pac-ghost": {
     "count": 4,
     "fh": 14,

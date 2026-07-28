@@ -37,6 +37,9 @@ CRIMSON = Path(sys.argv[2]) if len(sys.argv) > 2 else (
     Path.home() / "Downloads" / "CRIMSONLAND_ANDROID_EXTRACTED_ASSETS"
     / "CRIMSONLAND_ANDROID_EXTRACTED_ASSETS" / "creatures"
 )
+# repo-local TexturePacker atlases (lizard + lizard-den) — checked in because
+# they aren't part of the shmup-party-sp source tree
+ART = ROOT / "scripts" / "art"
 OUT = ROOT / "ps2" / "assets"
 FONT_TTF = ROOT / "scripts" / "ShareTechMono-Regular.ttf"
 
@@ -51,13 +54,17 @@ def out_file(name):
     return f"{name.replace('-', '_')}.png"
 
 
-def repack_atlas(name, prefix, picks, out=None):
+def repack_atlas(name, prefix, picks, out=None, src_dir=None):
     """Extract `picks` frames from a TexturePacker atlas into an untrimmed strip."""
     out = out or name
-    data = json.loads((SRC / f"{name}.json").read_text())
+    src_dir = src_dir or SRC
+    data = json.loads((src_dir / f"{name}.json").read_text())
     tex = data["textures"][0]
     frames = {f["filename"]: f for f in tex["frames"]}
-    sheet = Image.open(SRC / tex["image"]).convert("RGBA")
+    img_path = src_dir / tex["image"]
+    if not img_path.exists():
+        img_path = src_dir / f"{name}.png"  # lizard-den.json names a stale image
+    sheet = Image.open(img_path).convert("RGBA")
 
     first = frames[f"{prefix}{picks[0]:04d}"]
     cw, ch = first["sourceSize"]["w"], first["sourceSize"]["h"]
@@ -415,6 +422,13 @@ repack_atlas("alien", "move-", picks)
 # spider2 frames 64 are 64x64 cells (all others 72x72) — picks avoid them
 repack_atlas("spider2", "move-", picks, out="spider")
 repack_atlas("spider2", "die-", picks, out="spider-die")
+# lizard swarms + the dens that hatch them (repo-local atlases; 32-frame den
+# anims pick every 4th frame, the 64-frame lizard anims every 8th like above)
+den_picks = [1, 5, 9, 13, 17, 21, 25, 29]
+repack_atlas("lizard", "move-", picks, src_dir=ART)
+repack_atlas("lizard", "die2-", picks, out="lizard-die", src_dir=ART)
+repack_atlas("lizard-den", "move-", den_picks, src_dir=ART)
+repack_atlas("lizard-den", "die-", den_picks, out="lizard-den-die", src_dir=ART)
 if CRIMSON.is_dir():
     crimson_strip("beetle", "beetle", "move-%04d.png", picks)
     crimson_gibs("beetle-gib", "beetle", "bodypart-unique-%04d.png", [1, 2, 3])

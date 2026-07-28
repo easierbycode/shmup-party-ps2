@@ -1,7 +1,8 @@
-// Zombie / alien / spider / beetle / crabfly horde: wave composition, edge
-// spawning, chase / skitter / weave AI, death drops. Ported from
-// wave-manager.ts + zombie.ts/alien.ts; the spider, beetle and crabfly are
-// new to the port (Crimsonland art).
+// Zombie / alien / spider / beetle / crabfly / lizard horde: wave
+// composition, edge spawning, chase / skitter / weave AI, lizard dens that
+// hatch reinforcements, death drops. Ported from wave-manager.ts +
+// zombie.ts/alien.ts; the spider, beetle, crabfly, lizard and den are new
+// to the port (Crimsonland art).
 
 import { ENEMIES, WAVE, POWERUPS } from 'data/tuning.js';
 import { S } from 'lib/sprites.js';
@@ -72,6 +73,65 @@ export function spawnEnemy(world, desc) {
   });
 }
 
+/** stationary lizard dens for wave n, dropped straight onto the arena floor
+    (they don't walk in from an edge). Carry-overs from earlier waves count
+    against the quota. Returns how many were placed, for waveTotal. */
+export function spawnDens(world, n) {
+  if (n < WAVE.denWave) return 0;
+  let alive = 0;
+  for (const e of world.enemies) if (e.type === 'lizard-den') alive++;
+  const want = Math.min(1 + Math.floor((n - WAVE.denWave) / 4), WAVE.denMax);
+  const base = ENEMIES['lizard-den'];
+  const hpScale = 1 + 0.08 * (n - 1);
+  let placed = 0;
+  for (let i = alive; i < want; i++) {
+    const spot = denSpot(world);
+    if (!spot) break;
+    world.enemies.push({
+      id: nextId++,
+      type: 'lizard-den',
+      x: spot.x,
+      y: spot.y,
+      hp: Math.round(base.hp * hpScale),
+      speed: 0,
+      radius: base.radius,
+      animT: rand(0, 1),
+      facingLeft: false,
+      // hatch clock plus the wave-scaled stats its lizards are born with
+      spawnT: rand(1, base.spawn.every),
+      brood: 0,
+      lizHp: Math.round(ENEMIES.lizard.hp * hpScale),
+      lizSpeed: ENEMIES.lizard.speed + 3 * n,
+    });
+    fx(world, 'smoke', spot.x, spot.y, { fps: 20, scale: 2 });
+    placed++;
+  }
+  return placed;
+}
+
+/** a floor spot clear of the walls, every living player and other dens;
+    null when nothing qualifies after a couple dozen rolls */
+function denSpot(world) {
+  for (let tries = 0; tries < 24; tries++) {
+    const x = rand(70, SCREEN_W - 70);
+    const y = rand(70, SCREEN_H - 70);
+    let ok = true;
+    for (const p of world.players) {
+      const dx = p.x - x;
+      const dy = p.y - y;
+      if (p.alive && dx * dx + dy * dy < 150 * 150) { ok = false; break; }
+    }
+    for (const e of world.enemies) {
+      if (!ok) break;
+      const dx = e.x - x;
+      const dy = e.y - y;
+      if (e.type === 'lizard-den' && dx * dx + dy * dy < 130 * 130) ok = false;
+    }
+    if (ok) return { x, y };
+  }
+  return null;
+}
+
 export function updateEnemies(world, dt) {
   for (const e of world.enemies) {
     // freeze powerup: everything locks mid-stride (animT stops too, so the
@@ -80,6 +140,10 @@ export function updateEnemies(world, dt) {
     if (world.freezeT > 0 && !e.shieldActive) continue;
     if (e.type === 'spider') {
       updateSpider(world, e, dt);
+      continue;
+    }
+    if (e.type === 'lizard-den') {
+      updateDen(world, e, dt);
       continue;
     }
     if (e.type === 'crabfly') {
@@ -152,6 +216,41 @@ function updateCrabfly(world, e, dt) {
   e.y += ((dy / d) * e.speed + (dx / d) * wob) * dt;
 }
 
+/** dens don't move — they incubate: a lizard hatches every spawn.every
+    seconds until spawn.maxAlive of the brood are up, and losses re-hatch on
+    the same clock (the timer holds while full, so a kill is never replaced
+    instantly). Hatchlings pop out a step from the mouth in a random
+    direction and chase like everything else. */
+function updateDen(world, e, dt) {
+  const spec = ENEMIES['lizard-den'].spawn;
+  e.animT += dt;
+  if (e.brood >= spec.maxAlive) {
+    e.spawnT = spec.every;
+    return;
+  }
+  e.spawnT -= dt;
+  if (e.spawnT > 0) return;
+  e.spawnT = spec.every;
+  e.brood++;
+  const ang = rand(0, Math.PI * 2);
+  world.enemies.push({
+    id: nextId++,
+    type: 'lizard',
+    denId: e.id,
+    x: e.x + Math.cos(ang) * 20,
+    y: e.y + Math.sin(ang) * 20,
+    hp: e.lizHp,
+    speed: e.lizSpeed,
+    radius: ENEMIES.lizard.radius,
+    animT: rand(0, 1),
+    facingLeft: false,
+    darting: false,
+    dartT: 0,
+    dartDir: 0,
+    wobT: rand(0, Math.PI * 2),
+  });
+}
+
 /** ice tint while the freeze powerup runs; blinks off during the last second
     so the thaw telegraphs. undefined = draw untinted. */
 export function freezeTint(world) {
@@ -178,10 +277,20 @@ export function damageEnemy(world, e, dmg, killer) {
   if (e.hp > 0) return false;
 
   world.enemies.splice(world.enemies.indexOf(e), 1);
-  world.waveKills++;
+  // den-hatched lizards are reinforcements, not part of the wave roster —
+  // counting them would let an untouched den clear its own wave
+  if (!e.denId) world.waveKills++;
+  // free the brood slot so the den re-hatches on its clock
+  if (e.denId) {
+    for (const d of world.enemies) {
+      if (d.id === e.denId) { d.brood--; break; }
+    }
+  }
   if (e.type === 'spider') fx(world, 'spider-die', e.x, e.y, { fps: 24, flipX: e.facingLeft });
   else if (e.type === 'crabfly') fx(world, 'crabfly-die', e.x, e.y, { fps: 18, flipX: e.facingLeft });
   else if (e.type === 'beetle') gibBurst(world, 'beetle-gib', e.x, e.y);
+  else if (e.type === 'lizard') fx(world, 'lizard-die', e.x, e.y, { fps: 24, flipX: e.facingLeft });
+  else if (e.type === 'lizard-den') fx(world, 'lizard-den-die', e.x, e.y, { fps: 12 });
   else fx(world, 'blood-splat', e.x, e.y, { fps: 30 });
 
   if (killer) killer.xp += ENEMIES[e.type].xp;

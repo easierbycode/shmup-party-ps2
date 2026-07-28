@@ -10,7 +10,7 @@ import { buzz, updateHaptics, stopHaptics } from 'lib/haptics.js';
 import { sfx, tickAudio } from 'lib/audio.js';
 import { screens } from 'lib/screens.js';
 import { pollPad, connectedPorts } from 'lib/input.js';
-import { buildWave, spawnEnemy, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
+import { buildWave, spawnEnemy, spawnDens, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
 import { Boss } from 'lib/boss.js';
 import { drawText, drawTextCentered, textWidth } from 'lib/text.js';
 import { SCREEN_W, SCREEN_H, clamp, hit, dirFrame } from 'lib/util.js';
@@ -123,7 +123,9 @@ export default class GameScreen {
     } else {
       this.banner(`WAVE ${w.wave}`, WHITE());
       w.pending = buildWave(w.wave);
-      w.waveTotal = w.pending.length;
+      // dens land on the floor right away and count toward the wave roster
+      // (their hatched lizards don't — see damageEnemy)
+      w.waveTotal = w.pending.length + spawnDens(w, w.wave);
     }
   }
 
