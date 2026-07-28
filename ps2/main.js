@@ -8,6 +8,7 @@
 //     same globals from 5velte-ps2's Phaser 4 host, then imports this file.
 
 import { screens } from 'lib/screens.js';
+import { initAudio } from 'lib/audio.js';
 import TitleScreen from 'screens/title.js';
 import GameScreen from 'screens/game.js';
 
@@ -17,6 +18,7 @@ import GameScreen from 'screens/game.js';
 // hardware — see ps2-ryu's main.js. The browser shim has no setMode.
 if (typeof Screen.setMode === 'function') Screen.setMode(Screen.getMode());
 Screen.setVSync(true);
+initAudio();
 
 screens.register('title', new TitleScreen());
 screens.register('game', new GameScreen());

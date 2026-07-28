@@ -7,6 +7,7 @@ import { PLAYER, WEAPONS, WAVE, POWERUPS, PERKS, XP_PER_LEVEL, BOSS } from 'data
 import { S, P } from 'lib/sprites.js';
 import { fx, updateFx, renderFx } from 'lib/fx.js';
 import { buzz, updateHaptics, stopHaptics } from 'lib/haptics.js';
+import { sfx, tickAudio } from 'lib/audio.js';
 import { screens } from 'lib/screens.js';
 import { pollPad, connectedPorts } from 'lib/input.js';
 import { buildWave, spawnEnemy, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
@@ -139,6 +140,7 @@ export default class GameScreen {
     // runs before the pause/perk/game-over early returns so in-flight
     // rumble pulses always decay instead of sticking on
     updateHaptics(dt);
+    tickAudio(dt);
 
     // controller hotplug (a second PS2 pad joins mid-run)
     for (const port of connectedPorts()) this.join(port);
@@ -264,6 +266,7 @@ export default class GameScreen {
     } else {
       if (pad.just(Pads.L1) && p.dashCd <= 0) {
         buzz(p.port, 'dash');
+        sfx('dash');
         p.dashT = PLAYER.dash.time;
         p.dashCd = PLAYER.dash.cooldown;
         p.dashDir = p.heading;
@@ -300,7 +303,10 @@ export default class GameScreen {
     p.y = clamp(p.y, 20, SCREEN_H - 20);
 
     // weapon cycling (R1)
-    if (pad.just(Pads.R1)) p.weapon = (p.weapon + 1) % WEAPONS.length;
+    if (pad.just(Pads.R1)) {
+      p.weapon = (p.weapon + 1) % WEAPONS.length;
+      sfx('switch');
+    }
 
     // aim + fire: right stick is twin-stick; CROSS auto-aims (cabinet mode)
     let firing = false;
@@ -360,6 +366,7 @@ export default class GameScreen {
   fire(p) {
     const spec = WEAPONS[p.weapon];
     p.cooldown = spec.rate * p.perkRate;
+    sfx(spec.sfx);
     const off = 26;
     this.world.bullets.push({
       spec,
@@ -393,6 +400,7 @@ export default class GameScreen {
             b.hits.add(e.id);
           }
           if (b.spec.impact) fx(w, b.spec.impact, e.x, e.y, { fps: 30 });
+          if (b.spec.hitSfx) sfx(b.spec.hitSfx);
           damageEnemy(w, e, b.dmg, b.owner);
           if (!b.hits) {
             dead = true;
@@ -401,6 +409,7 @@ export default class GameScreen {
         }
         if (!dead && w.boss && !w.boss.dying && w.boss.hitTest(b.x, b.y, b.spec.radius, b.dmg)) {
           if (b.spec.impact) fx(w, b.spec.impact, b.x, b.y, { fps: 30 });
+          if (b.spec.hitSfx) sfx(b.spec.hitSfx);
           if (!b.hits) dead = true;
         }
       }
@@ -470,6 +479,7 @@ export default class GameScreen {
         for (const q of w.players) if (q.alive) buzz(q.port, 'nuke');
         break;
       case 'fireblast': {
+        sfx('fireblast');
         const spec = WEAPONS[0];
         for (let i = 0; i < POWERUPS.fireblastCount; i++) {
           const a = (i / POWERUPS.fireblastCount) * Math.PI * 2;

@@ -26,7 +26,7 @@ npm install
 npm run dev        # browser build at http://localhost:5173/play/
 npm run build      # production build (base /shmup-party-ps2/)
 npm run iso        # deno-powered ISO9660 writer -> shmup-party-ps2.iso
-npm run assets     # regenerate ps2/assets from ../shmup-party-sp art (PIL)
+npm run assets     # regenerate ps2/assets from ../shmup-party-sp art + sfx (PIL, ffmpeg)
 ```
 
 The ISO boots in PCSX2, in the CMG launcher's PlayStation 2 screen (the
@@ -54,3 +54,11 @@ the 640x448 background. Frame metadata lands in the generated
 Waves, perks, powerups, the barrier dash and the Evil Brain boss are ported
 from the Phaser original's scenes/game-objects, retuned for a single-screen
 640x448 arena (the original plays on a 1680x1050 scrolling world).
+
+Weapon sfx come from the original's `assets/sfx` mp3 pack, converted by
+`prep-assets.py` into audsrv ADPCM (`.adp`, played through AthenaEnv's
+`Sound.Sfx` — `audsrv = true` in [`ps2/athena.ini`](ps2/athena.ini)) plus a
+`.wav` twin the browser build plays through a Phaser-backed `Sound` shim
+([`src/web/sound-shim.ts`](src/web/sound-shim.ts)).
+[`ps2/lib/audio.js`](ps2/lib/audio.js) owns the bank, volumes and the
+per-effect spam throttle; every call no-ops on hosts without the Sound API.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the PS2 asset set from shmup-party-sp's source art.
+"""Build the PS2 asset set from shmup-party-sp's source art and audio.
 
 AthenaEnv's Image API has no rotation and the PS2 GS tops out at 1024px
 textures, so the source art is adapted at build time:
@@ -22,6 +22,8 @@ platforms). Rerun after changing source art:
 
 import json
 import math
+import struct
+import subprocess
 import sys
 from pathlib import Path
 
@@ -213,6 +215,168 @@ def copies():
             }
 
 
+# --- sound effects ---------------------------------------------------------
+#
+# Role name -> source mp3 (relative to SRC/sfx). Role names must be
+# lowercase underscore-only: ISO9660 maps '-' to '_' and uppercases, and
+# PS2 cdvd lookups are only case-insensitive, so anything else would
+# never resolve on a real disc (same constraint as out_file above).
+SFX = {
+    "ion_fire": "shock_fire.mp3",
+    "ciga_fire": "flamer_fire_01.mp3",
+    "pac_fire": "plasmaShotgun_fire.mp3",
+    "dash": "shockwave.mp3",
+    "fireblast": "explosion_medium.mp3",
+    "switch": "ui_clink_01.mp3",
+    "ion_hit": "shock_hit_01.mp3",
+    "ciga_hit": "bullet_hit_01.mp3",
+    "pac_hit": "bullet_hit_02.mp3",
+}
+
+FFMPEG = Path("/opt/homebrew/bin/ffmpeg")
+SFX_RATE = 22050
+
+# SPU2 ADPCM filter predictors, from ps2sdk tools/adpenc/src/adpcm.c
+# (coefficients (0,0),(60,0),(115,-52),(98,-55),(122,-60) over 64).
+SPU_F = (
+    (0.0, 0.0),
+    (-60.0 / 64.0, 0.0),
+    (-115.0 / 64.0, 52.0 / 64.0),
+    (-98.0 / 64.0, 55.0 / 64.0),
+    (-122.0 / 64.0, 60.0 / 64.0),
+)
+
+
+def wav_from_mp3(src, dst):
+    """mp3 -> mono 16-bit 22050 Hz WAV via ffmpeg, then verify the header
+    is the canonical 44-byte layout with the data chunk at offset 36
+    (AthenaEnv's Sound.Stream hard-seeks PCM past a fixed-size header, so
+    a LIST/metadata chunk would corrupt playback). Returns the PCM body."""
+    if not src.exists():
+        sys.exit(f"[prep-assets] missing source sfx: {src}")
+    subprocess.run(
+        [str(FFMPEG), "-hide_banner", "-loglevel", "error", "-y",
+         "-i", str(src), "-ac", "1", "-ar", str(SFX_RATE),
+         "-sample_fmt", "s16", "-fflags", "+bitexact", "-f", "wav", str(dst)],
+        check=True,
+    )
+    b = dst.read_bytes()
+    fmt_size, audio_fmt, ch, rate = struct.unpack_from("<IHHI", b, 16)
+    balign, bits = struct.unpack_from("<HH", b, 32)
+    data_size = struct.unpack_from("<I", b, 40)[0]
+    ok = (len(b) > 44 and b[:4] == b"RIFF" and b[8:16] == b"WAVEfmt "
+          and fmt_size == 16 and audio_fmt == 1 and ch == 1
+          and rate == SFX_RATE and balign == 2 and bits == 16
+          and b[36:40] == b"data" and data_size == len(b) - 44
+          and struct.unpack_from("<I", b, 4)[0] == len(b) - 8)
+    if not ok:
+        sys.exit(f"[prep-assets] {dst.name}: ffmpeg did not emit a canonical 44-byte WAV header")
+    return b[44:]
+
+
+def spu_find_predict(samples, state):
+    """Port of adpenc find_predict(): pick the predictor with the smallest
+    peak residual over the 28-sample block, then derive the shift factor.
+    state carries the C statics (_s_1/_s_2: last two clamped inputs)."""
+    buf = [[0.0] * 5 for _ in range(28)]
+    mx = [0.0] * 5
+    mn = 1e10
+    predict_nr = 0
+    s_1 = s_2 = 0.0
+    for i in range(5):
+        s_1, s_2 = state["fs1"], state["fs2"]
+        for j in range(28):
+            s_0 = float(min(30719, max(-30720, samples[j])))
+            ds = s_0 + s_1 * SPU_F[i][0] + s_2 * SPU_F[i][1]
+            buf[j][i] = ds
+            if abs(ds) > mx[i]:
+                mx[i] = abs(ds)
+            s_2, s_1 = s_1, s_0
+        if mx[i] < mn:
+            mn = mx[i]
+            predict_nr = i
+        if mn <= 7:
+            predict_nr = 0
+            break
+    state["fs1"], state["fs2"] = s_1, s_2
+
+    min2 = int(mn)
+    shift_mask = 0x4000
+    shift_factor = 0
+    while shift_factor < 12:
+        if shift_mask & (min2 + (shift_mask >> 3)):
+            break
+        shift_factor += 1
+        shift_mask >>= 1
+    return predict_nr, shift_factor, [buf[i][predict_nr] for i in range(28)]
+
+
+def spu_pack(d_samples, predict_nr, shift_factor, state):
+    """Port of adpenc pack(): quantize 28 residuals to 4 bits (kept in the
+    top nibble of a 16-bit value, adpenc-style) with IIR feedback of the
+    quantization error. state carries the C statics (s_1/s_2)."""
+    s_1, s_2 = state["ps1"], state["ps2"]
+    four_bit = []
+    for i in range(28):
+        s_0 = d_samples[i] + s_1 * SPU_F[predict_nr][0] + s_2 * SPU_F[predict_nr][1]
+        ds = s_0 * (1 << shift_factor)
+        di = (int(ds) + 0x800) & 0xFFFFF000
+        if di & 0x80000000:  # C does this AND on a signed 32-bit int
+            di -= 1 << 32
+        di = min(32767, max(-32768, di))
+        four_bit.append(di)
+        di >>= shift_factor  # Python >> is arithmetic, like the C original
+        s_2, s_1 = s_1, float(di) - s_0
+    state["ps1"], state["ps2"] = s_1, s_2
+    return four_bit
+
+
+def adp_from_pcm(pcm, dst):
+    """PCM s16le bytes -> audsrv .adp: 16-byte "APCM" header (id, version,
+    channels, loop, reserved, pitch = rate*4096/48000, sample count) then
+    SPU2 ADPCM blocks of 16 bytes = pack_info + flags + 28 nibbles, ported
+    from ps2sdk tools/adpenc (adpcm_encode with flag_loop=0): flags are 0,
+    except 1 on a final zero-padded partial block, then one terminator
+    block with flags 7 and 14 zero data bytes."""
+    n = len(pcm) // 2
+    samples = list(struct.unpack(f"<{n}h", pcm))
+    groups = (n + 27) // 28
+    samples += [0] * (groups * 28 - n)
+
+    out = bytearray(b"APCM")
+    out += struct.pack("<BBBBII", 1, 1, 0, 0, SFX_RATE * 4096 // 48000, n)
+
+    state = {"fs1": 0.0, "fs2": 0.0, "ps1": 0.0, "ps2": 0.0}
+    predict_nr = shift_factor = flags = 0
+    sample_len = n
+    for j in range(groups):
+        block = samples[j * 28:(j + 1) * 28]
+        predict_nr, shift_factor, d_samples = spu_find_predict(block, state)
+        four_bit = spu_pack(d_samples, predict_nr, shift_factor, state)
+        out.append((predict_nr << 4) | shift_factor)
+        out.append(flags)
+        for k in range(0, 28, 2):
+            out.append(((four_bit[k + 1] >> 8) & 0xF0) | ((four_bit[k] >> 12) & 0xF))
+        sample_len -= 28
+        if sample_len < 28:
+            flags = 1
+    out.append((predict_nr << 4) | shift_factor)
+    out.append(7)  # end flag
+    out += bytes(14)
+    dst.write_bytes(bytes(out))
+
+
+def sfx():
+    if not FFMPEG.exists():
+        sys.exit(f"[prep-assets] ffmpeg not found at {FFMPEG}")
+    sfx_out = OUT / "sfx"
+    sfx_out.mkdir(parents=True, exist_ok=True)
+    for name, src in SFX.items():
+        pcm = wav_from_mp3(SRC / "sfx" / src, sfx_out / f"{name}.wav")
+        adp_from_pcm(pcm, sfx_out / f"{name}.adp")
+        print(f"  {name:16s} {len(pcm) // 2} samples @ {SFX_RATE} Hz  <- {src}")
+
+
 def emit_js():
     lines = [
         "// GENERATED by scripts/prep-assets.py — do not edit by hand.",
@@ -262,8 +426,10 @@ rotations("barrier.png", "barrier", 90, 180, fw=80, fh=41, frames=[0, 4])
 font_sheet()
 background()
 copies()
+sfx()
 emit_js()
 
 for name, meta in sorted(sheets.items()):
     print(f"  {name:16s} {meta['fw']}x{meta['fh']} x{meta['count']}")
 print(f"[prep-assets] wrote {len(list(OUT.glob('*.png')))} PNGs to {OUT}")
+print(f"[prep-assets] wrote {len(SFX)} sfx as .wav + .adp to {OUT / 'sfx'}")

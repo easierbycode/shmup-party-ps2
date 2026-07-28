@@ -8,8 +8,16 @@ import { createRuntime, type PS2Runtime } from '5velte-ps2'
 import { createPhaserHost } from '5velte-ps2/phaser'
 import { WebPadSource } from './pad-source.ts'
 import { makeMultiPads } from './multi-pads.ts'
+import { makeSoundShim } from './sound-shim.ts'
 
 const assetUrls = import.meta.glob('../../ps2/assets/*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>
+
+// browser-playable twins of the .adp sfx the PS2 build loads
+const sfxUrls = import.meta.glob('../../ps2/assets/sfx/*.wav', {
   eager: true,
   query: '?url',
   import: 'default',
@@ -29,6 +37,10 @@ export default class Ps2Scene extends Phaser.Scene {
     for (const [path, url] of Object.entries(assetUrls)) {
       const name = path.split('/').pop()!
       this.load.image(`assets/${name}`, url)
+    }
+    for (const [path, url] of Object.entries(sfxUrls)) {
+      const name = path.split('/').pop()!
+      this.load.audio(`assets/sfx/${name}`, url)
     }
   }
 
@@ -54,6 +66,9 @@ export default class Ps2Scene extends Phaser.Scene {
     // runtime.Pads is single-port by design; the game spawns one player per
     // connected port, so the browser build needs the per-port view instead
     g.Pads = makeMultiPads(this.pads)
+    // Sound isn't in the 5velte-ps2 runtime — the local shim plays the .wav
+    // twins of the .adp sfx through Phaser's sound manager
+    g.Sound = makeSoundShim(this)
     g.Image = r.Image
     g.Font = r.Font
     g.Timer = r.Timer
