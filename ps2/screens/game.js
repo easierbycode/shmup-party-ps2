@@ -123,8 +123,8 @@ export default class GameScreen {
     } else {
       this.banner(`WAVE ${w.wave}`, WHITE());
       w.pending = buildWave(w.wave);
-      // dens land on the floor right away and count toward the wave roster
-      // (their hatched lizards don't — see damageEnemy)
+      // dens and nests land on the floor right away and count toward the
+      // wave roster (their hatched brood doesn't — see damageEnemy)
       w.waveTotal = w.pending.length + spawnDens(w, w.wave);
     }
   }

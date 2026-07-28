@@ -42,11 +42,54 @@ export const ENEMIES = {
   lizard: { hp: 90, speed: 135, radius: 11, anim: 16, xp: 5 },
   // stationary spawner, placed on the arena floor at wave start: hatches a
   // lizard every spawn.every seconds until spawn.maxAlive of its brood are
-  // up, and replaces losses until the den itself is destroyed
+  // up, and replaces losses until the den itself is destroyed. pool is what
+  // hatches: null = a plain `hatch`, a key = that VARIANTS entry (the yellow
+  // lizard is what Crimsonland's DenLizardWeak spawns).
   'lizard-den': {
     hp: 800, speed: 0, radius: 22, anim: 8, xp: 50,
-    spawn: { every: 2.8, maxAlive: 4 },
+    spawn: { every: 2.8, maxAlive: 4, hatch: 'lizard', pool: [null, null, 'blue-lizard', 'yellow-lizard'] },
   },
+  // spider egg cluster — the lizard den's meaner cousin: tougher, larger
+  // brood, and every hatchling is a tinted spider variant (blue spiders
+  // are the house specialty, as in Crimsonland's spider dens)
+  'spider-nest': {
+    hp: 1000, speed: 0, radius: 20, anim: 8, xp: 60,
+    spawn: {
+      every: 3.2, maxAlive: 5, hatch: 'spider',
+      pool: ['blue-spider-1', 'blue-spider-1', 'blue-spider-2', 'green-spider', 'red-spider'],
+    },
+  },
+};
+
+// Enemy variants ported from Crimsonland's creature-variants.xml: same base
+// sprite and AI, different stats, size and tint. hp/speed/xp are absolute
+// (same space as ENEMIES, xml ratios mapped onto this port's bases); scale
+// multiplies both the draw size and the hitbox radius; tint is [r,g,b]
+// multiplied over the sprite (Athena alpha 128 = neutral; `alpha` below it
+// makes a variant translucent). `wave` gates heavies out of early waves.
+export const VARIANTS = {
+  // spiders — the nest's brood, and wave spice from variantWave on
+  'blue-spider-1': { base: 'spider', hp: 100, speed: 107, scale: 0.95, xp: 20, tint: [128, 178, 255] }, // BlueSpider1
+  'blue-spider-2': { base: 'spider', hp: 90, speed: 103, scale: 0.85, xp: 19, tint: [190, 205, 255] },  // BlueSpider2
+  'red-spider': { base: 'spider', hp: 125, speed: 83, scale: 1.25, xp: 25, tint: [255, 120, 70] },      // SpiderRandomRed
+  'green-spider': { base: 'spider', hp: 95, speed: 79, scale: 0.9, xp: 20, tint: [110, 255, 110] },     // SpiderRandomGreen
+  'jerky-spider': { base: 'spider', hp: 70, speed: 190, scale: 0.9, xp: 65, wave: 8, tint: [255, 140, 255] }, // SpiderJerky
+  // aliens
+  'blue-alien': { base: 'alien', hp: 230, speed: 68, scale: 1.0, xp: 13, tint: [102, 204, 255] },       // BlueAlien
+  'alien-ghost': { base: 'alien', hp: 70, speed: 150, scale: 1.05, xp: 6, tint: [204, 255, 204], alpha: 60 }, // AlienGhost
+  'alien-deadly': { base: 'alien', hp: 100, speed: 187, scale: 0.85, xp: 45, wave: 9, tint: [255, 90, 30] },  // AlienDeadlyFast
+  'alien-big-gray': { base: 'alien', hp: 850, speed: 130, scale: 1.35, xp: 45, wave: 7, tint: [200, 255, 200] }, // AlienBigGray
+  // zombies
+  'red-zombie': { base: 'zombie', hp: 320, speed: 60, scale: 1.0, xp: 12, tint: [255, 140, 140] },      // ZombieRandonSlow
+  'huge-zombie': { base: 'zombie', hp: 1300, speed: 90, scale: 1.35, xp: 46, wave: 7, tint: [230, 255, 140] }, // ZombieHugeGreen
+  // beetles
+  'emerald-beetle': { base: 'beetle', hp: 1400, speed: 45, scale: 1.1, xp: 45, wave: 8, tint: [60, 200, 60] }, // BeetleEmerald
+  'fire-beetle': { base: 'beetle', hp: 470, speed: 57, scale: 0.9, xp: 28, tint: [255, 110, 30] },      // BeetleFire
+  // crabflies
+  'crabfly-mite': { base: 'crabfly', hp: 25, speed: 185, scale: 0.55, xp: 4, tint: [255, 255, 180] },   // Crabfly Ammo
+  // lizards — only ever den-hatched, so no wave gating needed
+  'blue-lizard': { base: 'lizard', hp: 86, speed: 135, scale: 0.95, xp: 7, tint: [110, 160, 255] },     // BlueLizard
+  'yellow-lizard': { base: 'lizard', hp: 70, speed: 150, scale: 0.9, xp: 7, tint: [255, 255, 90] },     // LizardRandomYellow
 };
 
 export const WAVE = {
@@ -57,6 +100,11 @@ export const WAVE = {
   crabflyWave: 5,      // first wave crabflies can appear
   denWave: 4,          // first wave lizard dens can appear
   denMax: 3,           // alive-den cap (survivors carry over between waves)
+  nestWave: 6,         // first wave spider nests can appear
+  nestMax: 2,          // alive-nest cap (survivors carry over, like dens)
+  variantWave: 3,      // first wave tinted variants can roll
+  variantChance: 0.06, // per-wave ramp of the variant roll, capped below
+  variantMax: 0.4,
   maxAlive: 24,
   trickle: 0.35,       // seconds between deferred spawns once at maxAlive
   clearRatio: 0.9,     // wave ends when 90% are down (as in the original)

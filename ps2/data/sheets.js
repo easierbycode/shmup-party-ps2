@@ -197,6 +197,18 @@ export const SHEETS = {
     "file": "assets/spider_die.png",
     "fw": 72
   },
+  "spider-nest": {
+    "count": 8,
+    "fh": 64,
+    "file": "assets/spider_nest.png",
+    "fw": 64
+  },
+  "spider-nest-die": {
+    "count": 8,
+    "fh": 64,
+    "file": "assets/spider_nest_die.png",
+    "fw": 64
+  },
   "zombie": {
     "count": 8,
     "fh": 72,

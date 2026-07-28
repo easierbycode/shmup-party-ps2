@@ -122,9 +122,9 @@ def rotations(src_name, out_name, cell, base_angle, fw=None, fh=None, frames=Non
     }
 
 
-def crimson_strip(out, subdir, pattern, picks):
+def crimson_strip(out, subdir, pattern, picks, src=None):
     """Pack loose Crimsonland frame files (pattern % n) into an untrimmed strip."""
-    frames = [Image.open(CRIMSON / subdir / (pattern % n)).convert("RGBA") for n in picks]
+    frames = [Image.open((src or CRIMSON) / subdir / (pattern % n)).convert("RGBA") for n in picks]
     cw = max(f.width for f in frames)
     ch = max(f.height for f in frames)
     strip = Image.new("RGBA", (cw * len(frames), ch), (0, 0, 0, 0))
@@ -429,6 +429,9 @@ repack_atlas("lizard", "move-", picks, src_dir=ART)
 repack_atlas("lizard", "die2-", picks, out="lizard-die", src_dir=ART)
 repack_atlas("lizard-den", "move-", den_picks, src_dir=ART)
 repack_atlas("lizard-den", "die-", den_picks, out="lizard-den-die", src_dir=ART)
+# spider nest (repo-local loose frames, Crimsonland Android rip layout)
+crimson_strip("spider-nest", "nest", "move-%04d.png", den_picks, src=ART)
+crimson_strip("spider-nest-die", "nest", "die-%04d.png", den_picks, src=ART)
 if CRIMSON.is_dir():
     crimson_strip("beetle", "beetle", "move-%04d.png", picks)
     crimson_gibs("beetle-gib", "beetle", "bodypart-unique-%04d.png", [1, 2, 3])
