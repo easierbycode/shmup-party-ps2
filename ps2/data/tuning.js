@@ -68,7 +68,7 @@ export const POWERUPS = {
   dropChance: 0.2,
   lifespan: 12,
   radius: 18,
-  types: ['speed', 'fireblast', 'boost', 'medikit', 'nuke'],
+  types: ['speed', 'fireblast', 'boost', 'medikit', 'nuke', 'chomp'],
   speedMult: 1.8,
   speedTime: 7,
   giantTime: 7,
@@ -80,6 +80,18 @@ export const POWERUPS = {
   fireblastCount: 16,
   fireblastDmg: 60,
   fireblastSpeed: 400,
+  // chomp ball: orbits the player chewing through anything it sweeps past.
+  // A target is only caught where the swing lines up with it, so the ball
+  // reaches a ring of |chompRadius - distance| <= chompBallRadius + its radius:
+  // 52 keeps that ring starting inside melee range, where the horde piles up.
+  // chompHit gives the same target a beat between bites, so lingering in the
+  // swing costs it a few hundred hp rather than everything in two frames.
+  chompTime: 15,
+  chompRadius: 52,      // orbit distance from the player, px
+  chompSpin: 3.6,       // radians/sec
+  chompBallRadius: 16,
+  chompDamage: 300,     // one-shots zombies and aliens, as in the original
+  chompHit: 0.25,       // seconds before the same target can be hit again
 };
 
 // DualShock 2 rumble pulses (lib/haptics.js). big: 0-255 motor intensity

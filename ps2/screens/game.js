@@ -49,6 +49,11 @@ function makePlayer(port, index) {
     dashHits: null,
     speedT: 0,
     giantT: 0,
+    // chomp ball: remaining time, orbit angle, and per-target hit cooldowns
+    // (enemy id -> seconds left; the boss uses the 'boss' key)
+    chompT: 0,
+    chompAng: 0,
+    chompHits: null,
     xp: 0,
     level: 1,
     perkSpeed: 1,
@@ -247,6 +252,10 @@ export default class GameScreen {
     if (p.invulnT > 0) p.invulnT -= dt;
     if (p.speedT > 0) p.speedT -= dt;
     if (p.giantT > 0) p.giantT -= dt;
+    if (p.chompT > 0) {
+      p.chompT -= dt;
+      if (p.chompT <= 0) p.chompHits = null;
+    }
     if (p.cooldown > 0) p.cooldown -= dt;
     if (p.dashCd > 0) p.dashCd -= dt;
 
@@ -322,6 +331,10 @@ export default class GameScreen {
     }
     if (firing && p.cooldown <= 0 && p.dashT <= 0) this.fire(p);
 
+    // orbiting chomp ball — runs after movement so it swings from where the
+    // player ended up this frame
+    if (p.chompT > 0) this.updateChomp(p, dt);
+
     // enemy contact: while giant the player is untouchable and poisonous —
     // anything that runs into them melts instead of landing a hit
     if (p.giantT > 0) {
@@ -347,6 +360,45 @@ export default class GameScreen {
           this.hurtPlayer(p, bx, by);
         }
       }
+    }
+  }
+
+  /** where p's chomp ball sits this frame */
+  chompPos(p) {
+    return {
+      x: p.x + Math.cos(p.chompAng) * POWERUPS.chompRadius,
+      y: p.y + Math.sin(p.chompAng) * POWERUPS.chompRadius,
+    };
+  }
+
+  updateChomp(p, dt) {
+    const w = this.world;
+    p.chompAng += POWERUPS.chompSpin * dt;
+    if (p.chompAng > Math.PI * 2) p.chompAng -= Math.PI * 2;
+
+    // tick the per-target cooldowns down; deleting during the walk is safe on
+    // a Map iterator
+    for (const [id, left] of p.chompHits) {
+      if (left - dt <= 0) p.chompHits.delete(id);
+      else p.chompHits.set(id, left - dt);
+    }
+
+    const ball = this.chompPos(p);
+    for (const e of [...w.enemies]) {
+      if (p.chompHits.has(e.id)) continue;
+      if (!hit(ball, e, POWERUPS.chompBallRadius, e.radius)) continue;
+      p.chompHits.set(e.id, POWERUPS.chompHit);
+      damageEnemy(w, e, POWERUPS.chompDamage * p.perkDmg, p);
+    }
+
+    if (w.boss && !w.boss.dying && !p.chompHits.has('boss')) {
+      const landed = w.boss.hitTest(
+        ball.x,
+        ball.y,
+        POWERUPS.chompBallRadius,
+        POWERUPS.chompDamage * p.perkDmg,
+      );
+      if (landed) p.chompHits.set('boss', POWERUPS.chompHit);
     }
   }
 
@@ -472,6 +524,11 @@ export default class GameScreen {
       case 'medikit':
         p.hp = Math.min(p.hp + 1, p.maxHp);
         break;
+      case 'chomp':
+        // re-collecting refreshes the duration rather than stacking a second ball
+        p.chompT = POWERUPS.chompTime;
+        p.chompHits = new Map();
+        break;
       case 'nuke':
         w.nukes.push({ x: pu.x, y: pu.y, t: 0, hits: new Set() });
         w.flashT = 0.4;
@@ -546,13 +603,22 @@ export default class GameScreen {
     for (const pu of w.powerups) {
       const left = POWERUPS.lifespan - pu.t;
       if (left < 3 && Math.floor(pu.t * 8) % 2 === 0) continue;
-      P(POWERUP_PICS[pu.type]).center(pu.x, pu.y);
+      if (pu.type === 'chomp') {
+        // the pickup is the ball itself, so it chomps where it lies
+        const ball = S('chomp-ball');
+        ball.draw(ball.frameAt(pu.t, 12), pu.x, pu.y);
+      } else {
+        P(POWERUP_PICS[pu.type]).center(pu.x, pu.y);
+      }
     }
 
     renderEnemies(w);
     if (w.boss) w.boss.render();
 
     for (const p of w.players) this.renderPlayer(p);
+    // drawn outside renderPlayer so the player's invulnerability blink doesn't
+    // strobe the ball along with them
+    for (const p of w.players) this.renderChomp(p);
     this.renderBullets();
     renderFx(w);
     this.renderNukes();
@@ -592,6 +658,15 @@ export default class GameScreen {
       // crackling at the old 8-frame/60fps cycle length
       bar.draw(bar.dirAt(p.dashDir, p.animT, 15), p.x + Math.cos(p.dashDir) * 14, p.y + Math.sin(p.dashDir) * 14);
     }
+  }
+
+  renderChomp(p) {
+    if (!p.alive || p.chompT <= 0) return;
+    // blink out the last second so the powerup's end reads before it goes
+    if (p.chompT < 1 && Math.floor(p.chompT * 8) % 2 === 0) return;
+    const ball = S('chomp-ball');
+    const pos = this.chompPos(p);
+    ball.draw(ball.frameAt(p.animT, 12), pos.x, pos.y);
   }
 
   renderBullets() {
