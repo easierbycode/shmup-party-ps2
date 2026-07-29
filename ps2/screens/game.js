@@ -76,6 +76,8 @@ export default class GameScreen {
       nukes: [],
       boss: null,
       wave: 0,
+      score: 0,
+      kills: 0,
       pending: [],
       waveTotal: 0,
       waveKills: 0,
@@ -136,6 +138,8 @@ export default class GameScreen {
     fx(w, 'eye-explode', SCREEN_W / 2, 120, { fps: 12, scale: 3 });
     for (const p of w.players) if (p.alive) buzz(p.port, 'bossDown');
     for (const p of w.players) if (p.alive) p.xp += BOSS.xp;
+    w.score += BOSS.score;
+    w.kills++;
     w.waveKills = w.waveTotal;
     w.breatherT = WAVE.breather;
     this.banner(`WAVE ${w.wave} CLEAR`, GREEN());
@@ -167,10 +171,18 @@ export default class GameScreen {
     const anyPad = pollPad(this.world.players[0] ? this.world.players[0].port : 0);
     const alive = w.players.filter((p) => p.alive);
 
-    // game over flow
+    // game over flow: let the banner land, then hand the run's tally to the
+    // leaderboard screen
     if (w.overT > 0) {
       w.overT -= dt;
-      if (w.overT <= 0) screens.change('title');
+      if (w.overT <= 0) {
+        screens.change('gameover', {
+          score: w.score,
+          wave: w.wave,
+          kills: w.kills,
+          players: w.players.length,
+        });
+      }
       return;
     }
     if (w.players.length > 0 && alive.length === 0) {
@@ -718,6 +730,8 @@ export default class GameScreen {
     }
 
     drawText(SCREEN_W - 84, 10, `WAVE ${w.wave}`, { color: GREEN() });
+    const scoreStr = String(w.score).padStart(8, '0');
+    drawText(SCREEN_W - 10 - textWidth(scoreStr), 30, scoreStr, { color: WHITE() });
 
     if (w.boss) {
       const ratio = w.boss.hpRatio();

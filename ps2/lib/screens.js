@@ -13,10 +13,11 @@ class ScreenManager {
     this.registry.set(id, screen);
   }
 
-  change(id) {
+  /** arg is handed to the incoming screen's onEnter (game -> gameover tally) */
+  change(id, arg) {
     if (this.current && this.current.onExit) this.current.onExit();
     this.current = this.registry.get(id);
-    if (this.current && this.current.onEnter) this.current.onEnter();
+    if (this.current && this.current.onEnter) this.current.onEnter(arg);
   }
 
   /** one frame: called from inside Screen.display() */

@@ -11,6 +11,7 @@ import { screens } from 'lib/screens.js';
 import { initAudio } from 'lib/audio.js';
 import TitleScreen from 'screens/title.js';
 import GameScreen from 'screens/game.js';
+import GameOverScreen from 'screens/gameover.js';
 
 // Recent AthenaEnv builds boot the GS half-initialized; re-applying the
 // current mode runs the full display setup (display offsets + flip). Without
@@ -22,6 +23,7 @@ initAudio();
 
 screens.register('title', new TitleScreen());
 screens.register('game', new GameScreen());
+screens.register('gameover', new GameOverScreen());
 screens.change('title');
 
 Screen.display(() => {

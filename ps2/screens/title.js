@@ -8,6 +8,8 @@ import { pollPad, connectedPorts } from 'lib/input.js';
 import { P } from 'lib/sprites.js';
 import { drawTextCentered } from 'lib/text.js';
 import { SCREEN_W, SCREEN_H } from 'lib/util.js';
+import { LEADERBOARD } from 'data/tuning.js';
+import { fetchTop, topCache } from 'lib/leaderboard.js';
 
 const GREEN = () => Color.new(156, 255, 107, 128);
 const DIM = (a) => Color.new(190, 220, 190, a);
@@ -15,6 +17,8 @@ const DIM = (a) => Color.new(190, 220, 190, a);
 export default class TitleScreen {
   onEnter() {
     this.t = 0;
+    // refresh the global top list; the cache paints while this is in flight
+    fetchTop(() => {});
   }
 
   update(dt) {
@@ -36,6 +40,16 @@ export default class TitleScreen {
 
     P('logo').center(SCREEN_W / 2, 120, { w: 600, h: 48 });
     drawTextCentered(SCREEN_W / 2, 152, 'SURVIVAL MODE', { color: DIM(100) });
+
+    // global top 5, once the leaderboard has answered at least once
+    if (topCache && topCache.length > 0) {
+      drawTextCentered(SCREEN_W / 2, 178, 'GLOBAL BEST', { color: DIM(100) });
+      for (let i = 0; i < topCache.length && i < LEADERBOARD.titleTop; i++) {
+        const row = topCache[i];
+        const line = `${i + 1}  ${row.name}  ${String(row.score).padStart(8, '0')}`;
+        drawTextCentered(SCREEN_W / 2, 198 + i * 16, line, { color: DIM(80) });
+      }
+    }
 
     if (Math.floor(this.t * 2) % 2 === 0) {
       drawTextCentered(SCREEN_W / 2, SCREEN_H / 2 + 36, 'PRESS START', { scale: 2, color: GREEN() });

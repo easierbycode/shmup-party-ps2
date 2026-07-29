@@ -41,6 +41,36 @@ Play! WASM emulator), and on softmodded hardware (OPL / DVD-R).
 - Keyboard: arrows/WASD move, SPACE fire, Q dash, E weapon, ENTER start,
   SHIFT restart
 
+## Global leaderboard (SpacetimeDB)
+
+Survival runs post to a global leaderboard backed by
+[SpacetimeDB](https://spacetimedb.com) — database `shmup-party-leaderboard`
+on maincloud ([dashboard](https://spacetimedb.com/shmup-party-leaderboard)).
+Every kill scores its Crimsonland `experience_worth` (creature-variants.xml),
+carried per enemy/variant as `score` in
+[`ps2/data/tuning.js`](ps2/data/tuning.js); on game over an arcade
+initials screen ([`ps2/screens/gameover.js`](ps2/screens/gameover.js))
+submits the run and shows the global top 10, and the title screen shows the
+top 3.
+
+[`ps2/lib/leaderboard.js`](ps2/lib/leaderboard.js) speaks SpacetimeDB's
+HTTP API on both targets: `fetch` in the browser, AthenaEnv's `Network` +
+`Request` (TLS 1.2) on real hardware, and it degrades to an OFFLINE board
+when neither can reach the host. The server module lives in
+[`spacetimedb/`](spacetimedb/) (TypeScript): one public `score` table the
+`submit_score` reducer trims to the global top 100, so clients read it with
+one-off SQL and sort client-side. Deploy changes with:
+
+```sh
+cd spacetimedb/spacetimedb
+npm install
+spacetime publish        # database + server from ../spacetime*.json
+```
+
+`LEADERBOARD` in `ps2/data/tuning.js` picks the host + database — point it
+at `http://127.0.0.1:3000` (`spacetime start` + `spacetime publish --server
+local`) to develop against a local instance.
+
 ## Porting notes
 
 AthenaEnv's `Image` has crops + flips but **no rotation**, and the GS tops

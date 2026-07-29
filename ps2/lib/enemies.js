@@ -48,6 +48,7 @@ function pushEnemy(world, type, variantKey, x, y, hp, speed, denId) {
     scale: v ? v.scale : undefined,
     tint: v ? Color.new(v.tint[0], v.tint[1], v.tint[2], v.alpha === undefined ? 128 : v.alpha) : undefined,
     xp: v ? v.xp : base.xp,
+    score: v ? v.score : base.score,
     animT: rand(0, 1),
     facingLeft: false,
     // spider skitter state; inert for the chase types
@@ -336,6 +337,9 @@ export function damageEnemy(world, e, dmg, killer) {
   else fx(world, 'blood-splat', e.x, e.y, { fps: 30 });
 
   if (killer) killer.xp += e.xp;
+  // leaderboard points are a team pot — unowned kills (nukes) count too
+  world.score += e.score;
+  world.kills++;
 
   if (Math.random() < POWERUPS.dropChance) {
     world.powerups.push({
