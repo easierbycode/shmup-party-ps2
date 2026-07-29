@@ -10,6 +10,7 @@
 import { screens } from 'lib/screens.js';
 import { initAudio } from 'lib/audio.js';
 import TitleScreen from 'screens/title.js';
+import DemoScreen from 'screens/demo.js';
 import GameScreen from 'screens/game.js';
 import GameOverScreen from 'screens/gameover.js';
 
@@ -22,6 +23,7 @@ Screen.setVSync(true);
 initAudio();
 
 screens.register('title', new TitleScreen());
+screens.register('demo', new DemoScreen());
 screens.register('game', new GameScreen());
 screens.register('gameover', new GameOverScreen());
 screens.change('title');

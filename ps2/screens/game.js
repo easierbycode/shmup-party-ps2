@@ -13,7 +13,7 @@ import { pollPad, connectedPorts } from 'lib/input.js';
 import { buildWave, spawnEnemy, spawnDens, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
 import { Boss } from 'lib/boss.js';
 import { drawText, drawTextCentered, textWidth } from 'lib/text.js';
-import { SCREEN_W, SCREEN_H, clamp, hit, dirFrame } from 'lib/util.js';
+import { SCREEN_W, SCREEN_H, clamp, hit } from 'lib/util.js';
 
 const WHITE = () => Color.new(255, 255, 255, 128);
 const GREEN = () => Color.new(156, 255, 107, 128);
@@ -29,10 +29,11 @@ const POWERUP_PICS = {
   freeze: 'powerup-freeze',
 };
 
-function makePlayer(port, index) {
+export function makePlayer(port, index) {
   return {
     port,
     index,
+    skin: PLAYER.skins[index % PLAYER.skins.length],
     x: SCREEN_W / 2 + (index % 2 === 0 ? -60 : 60),
     y: SCREEN_H / 2 + (index < 2 ? -40 : 40),
     heading: index % 2 === 0 ? 0 : Math.PI,
@@ -66,6 +67,13 @@ function makePlayer(port, index) {
 
 export default class GameScreen {
   onEnter() {
+    this.makeWorld();
+    this.joined = new Set();
+    for (const port of connectedPorts()) this.join(port);
+    this.nextWave();
+  }
+
+  makeWorld() {
     this.world = {
       players: [],
       enemies: [],
@@ -92,9 +100,12 @@ export default class GameScreen {
       perkOpen: null,
       onBossDefeated: () => this.bossDefeated(),
     };
-    this.joined = new Set();
-    for (const port of connectedPorts()) this.join(port);
-    this.nextWave();
+  }
+
+  /** how player p reads its pad this frame — the demo screen answers with a
+      synthetic pad for its AI troopers */
+  padFor(p) {
+    return pollPad(p.port);
   }
 
   onExit() {
@@ -276,7 +287,7 @@ export default class GameScreen {
     if (p.cooldown > 0) p.cooldown -= dt;
     if (p.dashCd > 0) p.dashCd -= dt;
 
-    const pad = pollPad(p.port);
+    const pad = this.padFor(p);
 
     // barrier dash (L1)
     if (p.dashT > 0) {
@@ -436,7 +447,7 @@ export default class GameScreen {
     const spec = WEAPONS[p.weapon];
     p.cooldown = spec.rate * p.perkRate;
     sfx(spec.sfx);
-    const off = 26;
+    const off = PLAYER.muzzle[p.skin];
     this.world.bullets.push({
       spec,
       x: p.x + Math.cos(p.heading) * off,
@@ -608,17 +619,28 @@ export default class GameScreen {
     if (pad.just(Pads.RIGHT)) w.perkOpen.idx = (w.perkOpen.idx + 1) % PERKS.length;
     if (pad.just(Pads.CROSS) || pad.just(Pads.START)) {
       sfx('button_press');
-      const perk = PERKS[w.perkOpen.idx];
-      if (perk.type === 'speed') p.perkSpeed *= 1.2;
-      else if (perk.type === 'fireRate') p.perkRate *= 0.8;
-      else if (perk.type === 'damage') p.perkDmg *= 1.5;
+      this.applyPerk(p, PERKS[w.perkOpen.idx]);
       w.perkOpen = null;
     }
+  }
+
+  applyPerk(p, perk) {
+    if (perk.type === 'speed') p.perkSpeed *= 1.2;
+    else if (perk.type === 'fireRate') p.perkRate *= 0.8;
+    else if (perk.type === 'damage') p.perkDmg *= 1.5;
   }
 
   // ── render ────────────────────────────────────────────────────────────────
 
   render() {
+    this.renderWorld();
+    this.renderHud();
+    if (this.world.perkOpen) this.renderPerkOverlay();
+  }
+
+  /** arena + everything living in it — shared with the demo screen, which
+      swaps the HUD for its own attract overlay */
+  renderWorld() {
     const w = this.world;
     P('bg').draw(0, 0);
 
@@ -656,9 +678,6 @@ export default class GameScreen {
       const a = Math.min(1, w.flashT / 0.4) * 100;
       Draw.rect(0, 0, SCREEN_W, SCREEN_H, Color.new(255, 240, 200, a));
     }
-
-    this.renderHud();
-    if (w.perkOpen) this.renderPerkOverlay();
   }
 
   renderPlayer(p) {
@@ -673,7 +692,11 @@ export default class GameScreen {
       : p.giantT > 0
         ? Color.new(110, 255, 120, 128)
         : undefined;
-    S('player').draw(dirFrame(p.heading), p.x, p.y, { scale, color });
+    // duke's sheet carries a 4-frame walk (12fps, phaser4's duke.walk — and
+    // like there, he strides in place while standing); the trooper sheets are
+    // single-frame, so dirAt collapses to the plain direction index
+    const sheet = S(p.skin);
+    sheet.draw(sheet.dirAt(p.heading, p.animT, 12), p.x, p.y, { scale, color });
 
     if (p.dashT > 0) {
       const bar = S('barrier');
@@ -739,17 +762,21 @@ export default class GameScreen {
       Draw.rect(SCREEN_W / 2 - 150, SCREEN_H - 25, 300 * ratio, 10, RED());
     }
 
-    if (w.banner && w.banner.t < 3.2) {
-      const a = w.banner.t < 0.3 ? w.banner.t / 0.3 : w.banner.t > 2.2 ? Math.max(0, 1 - (w.banner.t - 2.2)) : 1;
-      const c = w.banner.color;
-      const faded = Color.new(Color.getR(c), Color.getG(c), Color.getB(c), Math.round(128 * a));
-      drawTextCentered(SCREEN_W / 2, 86, w.banner.text, { scale: w.banner.scale, color: faded });
-    }
+    this.renderBanner();
 
     if (w.paused) {
       Draw.rect(0, 0, SCREEN_W, SCREEN_H, Color.new(0, 0, 0, 70));
       drawTextCentered(SCREEN_W / 2, SCREEN_H / 2 - 20, 'PAUSED', { scale: 3, color: GREEN() });
     }
+  }
+
+  renderBanner() {
+    const w = this.world;
+    if (!w.banner || w.banner.t >= 3.2) return;
+    const a = w.banner.t < 0.3 ? w.banner.t / 0.3 : w.banner.t > 2.2 ? Math.max(0, 1 - (w.banner.t - 2.2)) : 1;
+    const c = w.banner.color;
+    const faded = Color.new(Color.getR(c), Color.getG(c), Color.getB(c), Math.round(128 * a));
+    drawTextCentered(SCREEN_W / 2, 86, w.banner.text, { scale: w.banner.scale, color: faded });
   }
 
   renderPerkOverlay() {

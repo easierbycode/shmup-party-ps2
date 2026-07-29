@@ -110,14 +110,22 @@ export function buildWave(n) {
   return list;
 }
 
-/** materialize a descriptor at a random arena edge, walking in */
+/** materialize a descriptor at an arena edge, walking in. The descriptor may
+    pin the spot (desc.x/y — the demo's SURROUNDED ring) or the edge
+    (desc.edge 0..3 top/bottom/left/right — ZOMBIES_BELOW); default rolls
+    a random edge. */
 export function spawnEnemy(world, desc) {
-  const edge = randInt(0, 3);
   let x, y;
-  if (edge === 0) { x = rand(20, SCREEN_W - 20); y = -30; }
-  else if (edge === 1) { x = rand(20, SCREEN_W - 20); y = SCREEN_H + 30; }
-  else if (edge === 2) { x = -30; y = rand(20, SCREEN_H - 20); }
-  else { x = SCREEN_W + 30; y = rand(20, SCREEN_H - 20); }
+  if (desc.x !== undefined) {
+    x = desc.x;
+    y = desc.y;
+  } else {
+    const edge = desc.edge === undefined ? randInt(0, 3) : desc.edge;
+    if (edge === 0) { x = rand(20, SCREEN_W - 20); y = -30; }
+    else if (edge === 1) { x = rand(20, SCREEN_W - 20); y = SCREEN_H + 30; }
+    else if (edge === 2) { x = -30; y = rand(20, SCREEN_H - 20); }
+    else { x = SCREEN_W + 30; y = rand(20, SCREEN_H - 20); }
+  }
 
   pushEnemy(world, desc.type, desc.variant, x, y, desc.hp, desc.speed);
 }

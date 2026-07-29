@@ -8,29 +8,42 @@ import { pollPad, connectedPorts } from 'lib/input.js';
 import { P } from 'lib/sprites.js';
 import { drawTextCentered } from 'lib/text.js';
 import { SCREEN_W, SCREEN_H } from 'lib/util.js';
-import { LEADERBOARD } from 'data/tuning.js';
+import { LEADERBOARD, DEMO } from 'data/tuning.js';
 import { fetchTop, topCache } from 'lib/leaderboard.js';
 
 const GREEN = () => Color.new(156, 255, 107, 128);
 const DIM = (a) => Color.new(190, 220, 190, a);
 
+// any of these held counts as "someone's at the controls" for the demo timer
+const ANY_BUTTON = () =>
+  Pads.START | Pads.SELECT | Pads.CROSS | Pads.CIRCLE | Pads.SQUARE | Pads.TRIANGLE |
+  Pads.L1 | Pads.R1 | Pads.L2 | Pads.R2 | Pads.UP | Pads.DOWN | Pads.LEFT | Pads.RIGHT;
+
 export default class TitleScreen {
   onEnter() {
     this.t = 0;
+    this.idleT = 0;
     // refresh the global top list; the cache paints while this is in flight
     fetchTop(() => {});
   }
 
   update(dt) {
     this.t += dt;
+    this.idleT += dt;
     tickAudio(dt); // the sfx throttle's clock only advances while a screen ticks
     for (const port of connectedPorts()) {
       const pad = pollPad(port);
+      if (pad.held(ANY_BUTTON()) || pad.lx || pad.ly || pad.rx || pad.ry) this.idleT = 0;
       if (pad.just(Pads.START) || pad.just(Pads.CROSS)) {
         sfx('button_press');
         screens.change('game');
         return;
       }
+    }
+    // left alone long enough, the title rolls the Crimsonland demo reel
+    if (this.idleT >= DEMO.idle) {
+      screens.change('demo');
+      return;
     }
   }
 

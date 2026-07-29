@@ -12,6 +12,12 @@ export const PLAYER = {
   // endGrace: iframes after the dash ends, so stopping inside a crowd
   // doesn't take a hit on the very next frame
   dash: { speed: 780, time: 0.32, cooldown: 1.5, damage: 50, radius: 30, endGrace: 2 / 60 },
+  // per-slot looks: P1 is Duke (shmup-party-phaser4's attract-mode hero),
+  // P2 the classic trooper, P3/P4 the blue/green outfit recolors
+  skins: ['duke', 'player', 'player-blue', 'player-green'],
+  // muzzle: how far ahead of center a shot is born. Duke matches phaser4's
+  // getRightCenter() — half his 31px-wide sprite; troopers keep the port's 26.
+  muzzle: { 'duke': 16, 'player': 26, 'player-blue': 26, 'player-green': 26 },
 };
 
 // cycled with R1 (barrier dash stays on L1, as in the original)
@@ -187,6 +193,18 @@ export const HAPTICS = {
   nuke: { big: 255, small: 0, time: 0.5 },
   bossIncoming: { big: 130, small: 0, time: 0.6 },
   bossDown: { big: 255, small: 1, time: 0.9 },
+  // L1+R1 on the demo screen — phaser4's join rumble, DS2-ified
+  join: { big: 110, small: 1, time: 0.2 },
+};
+
+// Attract mode (screens/demo.js): the title idles into the Crimsonland demo
+// reel (data/demos.js, from the Android rip's demos.xml) until any pad
+// speaks up. Timings in seconds.
+export const DEMO = {
+  idle: 10,        // title inactivity before the reel starts
+  maxAlive: 14,    // horde cap while a node plays (lighter than a real wave)
+  trickle: 0.8,    // seconds between scripted spawns
+  powerupEvery: 4, // WEAPON_POWERUPS nodes: seconds between gift drops
 };
 
 export const PERKS = [

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<!--
+ "Upgrade to the Full Game Today!"
+"60 insane Levels with hours of intense and fun gameplay!"
+ "Six thrilling Game Modes!"
+ "Over 50 game altering Perks!"
+ "Arsenal of over 30 unique weapons - deal death with plasma, lead, fire, and electricity!"
+ "Play with your Bros in 2-4 Player Co-op Mode!"
+-->
+
+<root>
+
+	<array id="DEMOS">
+	
+		<!-- Menu Background Demos -->
+		
+		<node id="MENU_COMBAT_1"
+		 duration="10.0"
+		 spawns="ALIENS_AROUND"
+		 tags="WEAPON_POWERUPS"
+		 terrain_id="CHAPTER_2"
+		 trooper_1_position="1620,990"
+		 trooper_1_weapon="MEAN_MINIGUN"
+		/>		
+		
+		<node id="MENU_COMBAT_2"
+		 duration="12.0"
+		 tags="WEAPON_POWERUPS"
+		 spawns="LIZARDS"
+		 terrain_id="CHAPTER_3"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="SUBMACHINE_GUN"
+		 trooper_2_position="852,612"
+		 trooper_2_weapon="SHOTGUN"
+		/>	
+		
+		<node id="MENU_COMBAT_3"
+		 spawns="ZOMBIES_RANDOM"
+		 duration="7.0"
+		 terrain_id="CHAPTER_2"
+		/>
+		
+		<node id="MENU_COMBAT_4"
+		 duration="12.0"
+		 spawns="ALIENS"
+		 tags="WEAPON_POWERUPS"
+		 terrain_id="CHAPTER_1"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="SHOTGUN"
+		 trooper_2_position="552,612"
+		 trooper_2_weapon="SHOTGUN"
+		/>
+		
+
+		<node id="MENU_COMBAT_5"
+		 spawns="ZOMBIES_BELOW"
+		 duration="12.0"
+		 terrain_id="CHAPTER_2"
+		 trooper_1_position="412,512"
+		 trooper_1_weapon="PLASMA_MINIGUN"
+		 trooper_2_position="752,612"
+		 trooper_2_weapon="SHOTGUN"
+		 trooper_3_position="1312,712"
+		 trooper_3_weapon="SUBMACHINE_GUN"
+		 trooper_4_position="600,112"
+		 trooper_4_weapon="ROCKET_MINIGUN"
+		/>
+
+
+		
+		<!-- Upsell Screen Demos -->
+
+		<node id="TRIAL_DEMO_0"
+		 duration="6.0"
+		 terrain_id="CHAPTER_1"
+		 spawns="LIZARDS"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="ASSAULT_RIFLE"
+		 trooper_2_position="552,612"
+		 trooper_2_weapon="ASSAULT_RIFLE"
+		 trooper_3_position="652,412"
+		 trooper_3_weapon="ASSAULT_RIFLE"
+		 upsell_text_ios="Do you want more levels, weapons, and perks?"
+		 upsell_text="You have been playing the trial version of Crimsonland"
+		/>
+		
+		<node id="TRIAL_DEMO_1"
+		 duration="6.0"
+		 terrain_id="CHAPTER_3"
+		 _spawns="LIZARDS"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="ASSAULT_RIFLE"
+		 trooper_2_position="552,612"
+		 trooper_2_weapon="ASSAULT_RIFLE"
+		 upsell_text="Upgrade to the Full Game Today!"
+		/>
+		
+		<node id="TRIAL_DEMO_2"
+		 duration="6.0"
+		 terrain_id="CHAPTER_1"
+		 spawns="DENS"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="PLASMA_MINIGUN"
+		 trooper_2_position="552,612"
+		 trooper_2_weapon="PLASMA_MINIGUN"
+		 upsell_text="60 insane levels with hours of intense gameplay!"
+		/>
+
+		<node id="TRIAL_DEMO_3"
+		 duration="6.0"
+		 spawns="ZOMBIES"
+		 terrain_id="CHAPTER_3"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="ROCKET_MINIGUN"
+		 trooper_2_position="552,612"
+		 trooper_2_weapon="ION_MINIGUN"
+		 upsell_text="Deal death with arsenal of over 30 unique weapons"
+		/>
+	<!--	
+		<node id="TRIAL_DEMO_4"
+		 duration="6.0"
+		 terrain_id="CHAPTER_2"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="ROCKET_MINIGUN"
+		 trooper_2_position="552,612"
+		 trooper_2_weapon="ION_MINIGUN"
+		 upsell_text="Deal death with plasma, lead, fire, and electricity!"
+		/>
+		-->
+		
+		<node id="TRIAL_DEMO_5"
+		 duration="6.0"
+		 terrain_id="CHAPTER_6"
+		 tags="WEAPON_POWERUPS"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="PLASMA_OVERLOAD"
+		 upsell_text="Unleash the Devastating powerups!"
+		/>		
+		
+		<node id="TRIAL_DEMO_6"
+		 duration="8.0"
+		 terrain_id="CHAPTER_3"
+		 spawns="BOSS"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="MEAN_MINIGUN"
+		 _trooper_2_position="552,612"
+		 _trooper_2_weapon="SUBMACHINE_GUN"
+		 _trooper_3_position="852,812"
+		 _trooper_3_weapon="SUBMACHINE_GUN"
+		 upsell_text="Dominate in Desperate Boss Fights!"
+		/>
+
+		<node id="TRIAL_COOP"
+		 duration="6.0"
+		 terrain_id="CHAPTER_4"
+		 trooper_1_position="512,512"
+		 trooper_1_weapon="ASSAULT_RIFLE"
+		 trooper_2_position="552,612"
+		 trooper_2_weapon="SHOTGUN"
+		 trooper_3_position="652,412"
+		 trooper_3_weapon="GAUSS_GUN"
+		 trooper_4_position="752,412"
+		 trooper_4_weapon="PLASMA_RIFLE"
+		 upsell_text="Play with your Bros in 2-4 Player Co-op Mode!"
+		/>
+		
+		<node id="TRIAL_DEMO_7"
+		 duration="8.0"
+		 terrain_id="CHAPTER_3"
+		 spawns="SURROUNDED"
+		 trooper_1_position="840,512"
+		 trooper_1_weapon="MEAN_MINIGUN"
+		 upsell_text="Glorious Combat Awaits You, Trooper!"
+		/>
+		
+	</array>
+
+
+</root>
