@@ -98,6 +98,18 @@ Waves, perks, powerups, the barrier dash and the Evil Brain boss are ported
 from the Phaser original's scenes/game-objects, retuned for a single-screen
 640x448 arena (the original plays on a 1680x1050 scrolling world).
 
+The arena floor is Crimsonland's terrain generator run at build time: no
+runtime rotation means the rip's `terrains.xml` draw-ops (random-angle
+tiles, splashes, footprint trails, quest-gated decorations) can't run on
+the PS2, so [`scripts/prep-terrains.py`](scripts/prep-terrains.py)
+interprets the repo-local
+[`scripts/art/terrains.xml`](scripts/art/terrains.xml) with PIL and bakes
+seeded 640x448 variants (`ps2/assets/terrain_*.png`, metadata in the
+generated [`ps2/data/terrains.js`](ps2/data/terrains.js)). The survival
+desert (`CHAPTER_2`) is adjusted to keep the original scorched-earth
+`bg.png` visible under the desert wash; each run picks a random variant and
+mirror-flips it, so 3 PNGs read as 12 arenas.
+
 Sfx come from the original's `assets/sfx` mp3 pack, the Crimsonland rip's own
 `sfx` folder, and `scripts/sfx` for one-offs (PAC fires the arcade coin
 jingle), converted by

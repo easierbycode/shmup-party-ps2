@@ -68,13 +68,14 @@ export class Pic {
     this.nh = this.img.height;
   }
 
-  /** top-left anchored, natural size unless w/h given */
+  /** top-left anchored, natural size unless w/h given; flipX/flipY mirror
+      (start/end swap, same idiom as Sheet.draw) */
   draw(x, y, opts = {}) {
     const img = this.img;
-    img.startx = 0;
-    img.starty = 0;
-    img.endx = this.nw;
-    img.endy = this.nh;
+    img.startx = opts.flipX ? this.nw : 0;
+    img.endx = opts.flipX ? 0 : this.nw;
+    img.starty = opts.flipY ? this.nh : 0;
+    img.endy = opts.flipY ? 0 : this.nh;
     img.color = opts.color === undefined ? Color.new(255, 255, 255, 128) : opts.color;
     img.width = opts.w === undefined ? this.nw : opts.w;
     img.height = opts.h === undefined ? this.nh : opts.h;

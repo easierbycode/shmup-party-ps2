@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "assets": "python3 scripts/prep-assets.py",
+    "terrains": "python3 scripts/prep-terrains.py",
     "iso": "deno run --allow-read --allow-write scripts/build-athena-iso.ts ps2 shmup-party-ps2.iso"
   },
   "dependencies": {

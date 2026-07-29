@@ -4,6 +4,7 @@
 // SELECT restarts. Endless waves with the Evil Brain every 5th wave.
 
 import { PLAYER, WEAPONS, WAVE, POWERUPS, PERKS, XP_PER_LEVEL, BOSS } from 'data/tuning.js';
+import { TERRAINS } from 'data/terrains.js';
 import { S, P } from 'lib/sprites.js';
 import { fx, updateFx, renderFx } from 'lib/fx.js';
 import { buzz, updateHaptics, stopHaptics } from 'lib/haptics.js';
@@ -13,7 +14,7 @@ import { pollPad, connectedPorts } from 'lib/input.js';
 import { buildWave, spawnEnemy, spawnDens, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
 import { Boss } from 'lib/boss.js';
 import { drawText, drawTextCentered, textWidth } from 'lib/text.js';
-import { SCREEN_W, SCREEN_H, clamp, hit } from 'lib/util.js';
+import { SCREEN_W, SCREEN_H, clamp, hit, randInt } from 'lib/util.js';
 
 const WHITE = () => Color.new(255, 255, 255, 128);
 const GREEN = () => Color.new(156, 255, 107, 128);
@@ -74,6 +75,15 @@ export default class GameScreen {
   }
 
   makeWorld() {
+    // per-run arena floor: one of the baked seeded desert variants
+    // (scripts/prep-terrains.py), randomly mirrored — the flips are free at
+    // draw time, so 3 PNGs read as 12 arenas. The demo reel shares this via
+    // its own makeWorld() call.
+    this.terrain = {
+      pic: `terrain-survival-${randInt(0, TERRAINS.survival.variants - 1)}`,
+      flipX: Math.random() < 0.5,
+      flipY: Math.random() < 0.5,
+    };
     this.world = {
       players: [],
       enemies: [],
@@ -642,7 +652,7 @@ export default class GameScreen {
       swaps the HUD for its own attract overlay */
   renderWorld() {
     const w = this.world;
-    P('bg').draw(0, 0);
+    P(this.terrain.pic).draw(0, 0, { flipX: this.terrain.flipX, flipY: this.terrain.flipY });
 
     // powerups (blink near expiry)
     for (const pu of w.powerups) {
