@@ -297,25 +297,32 @@ function updateDen(world, e, dt) {
   );
 }
 
-/** ice tint while the freeze powerup runs; blinks off during the last second
-    so the thaw telegraphs. undefined = draw untinted. */
-export function freezeTint(world) {
-  if (!(world.freezeT > 0)) return undefined;
-  if (world.freezeT < 1 && Math.floor(world.freezeT * 8) % 2 === 0) return undefined;
-  return Color.new(120, 200, 255, 128);
+/** horde-wide powerup tint: ice while frozen, violet while the reflex boost
+    slows time (freeze wins when both run). Each blinks off during its last
+    second so the wear-off telegraphs. undefined = draw untinted. */
+export function hordeTint(world) {
+  if (world.freezeT > 0) {
+    if (world.freezeT < 1 && Math.floor(world.freezeT * 8) % 2 === 0) return undefined;
+    return Color.new(120, 200, 255, 128);
+  }
+  if (world.slowT > 0) {
+    if (world.slowT < 1 && Math.floor(world.slowT * 8) % 2 === 0) return undefined;
+    return Color.new(200, 160, 255, 128);
+  }
+  return undefined;
 }
 
 export function renderEnemies(world) {
-  const ice = freezeTint(world);
+  const powerTint = hordeTint(world);
   for (const e of world.enemies) {
     const sheet = S(e.type);
     const meta = ENEMIES[e.type];
-    // the freeze tint overrides the variant tint while it holds (and during
-    // its end-blink the variant color flashes back through)
+    // the freeze/reflex tint overrides the variant tint while it holds (and
+    // during its end-blink the variant color flashes back through)
     sheet.draw(sheet.frameAt(e.animT, meta.anim), e.x, e.y, {
       flipX: e.facingLeft,
       scale: e.scale,
-      color: e.shieldActive ? undefined : ice || e.tint,
+      color: e.shieldActive ? undefined : powerTint || e.tint,
     });
   }
 }

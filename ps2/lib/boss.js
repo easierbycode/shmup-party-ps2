@@ -5,7 +5,7 @@
 import { BOSS } from 'data/tuning.js';
 import { S } from 'lib/sprites.js';
 import { fx } from 'lib/fx.js';
-import { nearestPlayer, freezeTint } from 'lib/enemies.js';
+import { nearestPlayer, hordeTint } from 'lib/enemies.js';
 import { SCREEN_W } from 'lib/util.js';
 
 // part layout in unscaled container coords (from the original's constructor)
@@ -157,7 +157,7 @@ export class Boss {
     const blinkOut = this.dying > 0 && Math.floor(this.dying * 16) % 2 === 0;
     if (blinkOut) return;
 
-    const ice = this.shieldActive ? undefined : freezeTint(this.world);
+    const ice = this.shieldActive ? undefined : hordeTint(this.world);
     topSheet.draw(topSheet.frameAt(this.animT, 1), this.x + (TOP.x + TOP.w / 2) * k, this.y + (TOP.y + TOP.h / 2) * k, { scale: k, color: ice });
     bottomSheet.draw(bottomSheet.frameAt(this.animT, 1), this.x + (BOTTOM.x + BOTTOM.w / 2) * k, this.y + (BOTTOM.y + BOTTOM.h / 2) * k, { scale: k, color: ice });
 

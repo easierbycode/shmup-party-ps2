@@ -155,7 +155,7 @@ export const POWERUPS = {
   dropChance: 0.2,
   lifespan: 12,
   radius: 18,
-  types: ['speed', 'fireblast', 'boost', 'medikit', 'nuke', 'chomp', 'freeze'],
+  types: ['speed', 'fireblast', 'boost', 'medikit', 'nuke', 'chomp', 'freeze', 'reflex'],
   speedMult: 1.8,
   speedTime: 7,
   giantTime: 7,
@@ -183,6 +183,12 @@ export const POWERUPS = {
   // active shield (shieldActive — none yet; the spiderBoss will have one)
   // shrug it off. Frozen targets still take damage and still hurt on touch.
   freezeTime: 5,
+  // reflex boost (Crimsonland's Reflex Boost): slow motion for the enemy
+  // side — horde, dens, boss and boss bullets tick at reflexScale speed
+  // while the players keep moving and firing in real time. World-level like
+  // freeze; a full freeze overrides it while both run.
+  reflexTime: 6,
+  reflexScale: 0.35,
 };
 
 // DualShock 2 rumble pulses (lib/haptics.js). big: 0-255 motor intensity

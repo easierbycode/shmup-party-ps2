@@ -76,6 +76,7 @@ export default class DemoScreen extends GameScreen {
     w.nukes = [];
     w.boss = null;
     w.freezeT = 0;
+    w.slowT = 0;
     w.flashT = 0;
     w.perkQueue = [];
     w.perkOpen = null;
@@ -296,6 +297,7 @@ export default class DemoScreen extends GameScreen {
     }
     if (w.flashT > 0) w.flashT -= dt;
     if (w.freezeT > 0) w.freezeT -= dt;
+    if (w.slowT > 0) w.slowT -= dt;
 
     this.updateDemoSpawns(dt);
     for (const p of w.players) {
@@ -306,10 +308,12 @@ export default class DemoScreen extends GameScreen {
       }
       this.updatePlayer(p, dt);
     }
-    updateEnemies(w, dt);
-    if (w.boss) w.boss.update(dt);
+    // reflex boost slow-mo, same shape as the game screen's update
+    const edt = w.slowT > 0 ? dt * POWERUPS.reflexScale : dt;
+    updateEnemies(w, edt);
+    if (w.boss) w.boss.update(w.boss.dying > 0 ? dt : edt);
     this.updateBullets(dt);
-    this.updateEnemyBullets(dt);
+    this.updateEnemyBullets(edt);
     this.updatePowerups(dt);
     this.updateNukes(dt);
     updateFx(w, dt);

@@ -28,6 +28,7 @@ const POWERUP_PICS = {
   medikit: 'powerup-medikit',
   nuke: 'powerup-nuke',
   freeze: 'powerup-freeze',
+  reflex: 'powerup-reflex-boost',
 };
 
 export function makePlayer(port, index) {
@@ -106,6 +107,7 @@ export default class GameScreen {
       overT: 0,
       flashT: 0,
       freezeT: 0,
+      slowT: 0,
       perkQueue: [],
       perkOpen: null,
       onBossDefeated: () => this.bossDefeated(),
@@ -229,13 +231,18 @@ export default class GameScreen {
     }
     if (w.flashT > 0) w.flashT -= dt;
     if (w.freezeT > 0) w.freezeT -= dt;
+    if (w.slowT > 0) w.slowT -= dt;
 
+    // reflex boost: the enemy side of the world ticks in slow motion while
+    // the players keep real time. The boss death sequence stays full speed
+    // so a kill can't drag (same carve-out freeze makes).
+    const edt = w.slowT > 0 ? dt * POWERUPS.reflexScale : dt;
     this.updateSpawning(dt);
     for (const p of w.players) this.updatePlayer(p, dt);
-    updateEnemies(w, dt);
-    if (w.boss) w.boss.update(dt);
+    updateEnemies(w, edt);
+    if (w.boss) w.boss.update(w.boss.dying > 0 ? dt : edt);
     this.updateBullets(dt);
-    this.updateEnemyBullets(dt);
+    this.updateEnemyBullets(edt);
     this.updatePowerups(dt);
     this.updateNukes(dt);
     updateFx(w, dt);
@@ -571,6 +578,11 @@ export default class GameScreen {
         // world-level, not per-player: the whole horde (and the boss) locks
         // up for everyone. Re-collecting refreshes the clock.
         w.freezeT = POWERUPS.freezeTime;
+        break;
+      case 'reflex':
+        // world-level slow motion (see the edt in update). Re-collecting
+        // refreshes the clock, like freeze.
+        w.slowT = POWERUPS.reflexTime;
         break;
       case 'nuke':
         w.nukes.push({ x: pu.x, y: pu.y, t: 0, hits: new Set() });
