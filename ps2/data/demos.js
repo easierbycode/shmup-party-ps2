@@ -96,7 +96,7 @@ export const DEMOS = [
     "duration": 6.0,
     "spawns": "LIZARDS",
     "powerups": false,
-    "text": "You have been playing the trial version of Crimsonland",
+    "text": null,
     "troopers": [
       {
         "x": 195,
@@ -120,7 +120,7 @@ export const DEMOS = [
     "duration": 6.0,
     "spawns": null,
     "powerups": false,
-    "text": "Upgrade to the Full Game Today!",
+    "text": null,
     "troopers": [
       {
         "x": 195,

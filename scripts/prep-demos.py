@@ -45,6 +45,11 @@ WEAPON_MAP = {
 }
 
 
+# upsell lines that only make sense in the original's trial build — the reel
+# still plays these nodes, just without the pitch on screen
+NO_TEXT = {"TRIAL_DEMO_0", "TRIAL_DEMO_1"}
+
+
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
@@ -68,7 +73,7 @@ for node in ET.parse(SRC).getroot().find("array"):
         "duration": float(a["duration"]),
         "spawns": a.get("spawns"),
         "powerups": "WEAPON_POWERUPS" in a.get("tags", ""),
-        "text": a.get("upsell_text"),
+        "text": None if a["id"] in NO_TEXT else a.get("upsell_text"),
         "troopers": troopers,
     })
 

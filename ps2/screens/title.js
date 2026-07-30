@@ -1,4 +1,4 @@
-// Title screen: logo, PRESS START, controls. Any pad's START (or CROSS)
+// Title screen: logo, global best, PRESS START. Any pad's START (or CROSS)
 // drops into the arena — matching the menu flow of the Svelte original,
 // trimmed to the survival mode the port ships.
 
@@ -67,11 +67,6 @@ export default class TitleScreen {
     if (Math.floor(this.t * 2) % 2 === 0) {
       drawTextCentered(SCREEN_W / 2, SCREEN_H / 2 + 36, 'PRESS START', { scale: 2, color: GREEN() });
     }
-
-    const y = SCREEN_H - 120;
-    drawTextCentered(SCREEN_W / 2, y, 'LEFT STICK: MOVE   RIGHT STICK: AIM + FIRE', { color: DIM(110) });
-    drawTextCentered(SCREEN_W / 2, y + 22, 'CROSS: AUTO-AIM FIRE   L1: BARRIER DASH', { color: DIM(110) });
-    drawTextCentered(SCREEN_W / 2, y + 44, 'R1: CYCLE WEAPON   START: PAUSE   SELECT: RESTART', { color: DIM(110) });
 
     drawTextCentered(SCREEN_W / 2, SCREEN_H - 30, "SH'M UP PARTY - PS2 - 5VELTE-PS2 x ATHENAENV", { color: DIM(70) });
   }
