@@ -41,8 +41,8 @@ Play! WASM emulator), and on softmodded hardware (OPL / DVD-R).
 - Keyboard: arrows/WASD move, SPACE fire, Q dash, E weapon, ENTER start,
   SHIFT restart
 - Player slots wear different rigs: **P1** is Duke (shmup-party-phaser4's
-  attract hero), **P2** the classic trooper, **P3/P4** blue/green trooper
-  recolors
+  attract hero), **P2** the classic trooper, **P3/P4** Contra's Bill and
+  Lance
 
 ## Demo mode
 

@@ -13,11 +13,13 @@ export const PLAYER = {
   // doesn't take a hit on the very next frame
   dash: { speed: 780, time: 0.32, cooldown: 1.5, damage: 50, radius: 30, endGrace: 2 / 60 },
   // per-slot looks: P1 is Duke (shmup-party-phaser4's attract-mode hero),
-  // P2 the classic trooper, P3/P4 the blue/green outfit recolors
-  skins: ['duke', 'player', 'player-blue', 'player-green'],
+  // P2 the classic trooper, P3/P4 Contra's Bill and Lance
+  skins: ['duke', 'player', 'bill', 'lance'],
   // muzzle: how far ahead of center a shot is born. Duke matches phaser4's
-  // getRightCenter() — half his 31px-wide sprite; troopers keep the port's 26.
-  muzzle: { 'duke': 16, 'player': 26, 'player-blue': 26, 'player-green': 26 },
+  // getRightCenter() — half his 31px-wide sprite; the trooper keeps the
+  // port's 26; Bill and Lance's rifles reach the edge of their 2x-baked
+  // 54px-tall frames, so half of that.
+  muzzle: { 'duke': 16, 'player': 26, 'bill': 27, 'lance': 27 },
 };
 
 // cycled with R1 (barrier dash stays on L1, as in the original)

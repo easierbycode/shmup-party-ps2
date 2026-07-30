@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
-"""Player-skin assets: Duke's pre-rotated sheet (P1) and the blue/green
-trooper recolors (P3/P4), merged into the generated ps2/data/sheets.js.
+"""Player-skin assets: pre-rotated sheets for Duke (P1) and Contra's Bill
+(P3) / Lance (P4), merged into the generated ps2/data/sheets.js.
 
-Duke is shmup-party-phaser4's attract-mode hero (duke_atlas: a 4-frame
-top-down walk, gun pointing up = heading -90 deg). AthenaEnv's Image API has
-no rotation, so like prep-assets.py rotations() each walk frame is baked
-into 16 pre-rotated directions (22.5 deg steps, frame = anim * 16 + dir).
+Each hero ships as a small top-down walk atlas in scripts/art (4 frames,
+gun pointing up = heading -90 deg): duke_atlas is shmup-party-phaser4's
+attract-mode hero, bill_atlas/lance_atlas are Contra's commandos. AthenaEnv's
+Image API has no rotation, so like prep-assets.py rotations() each walk frame
+is baked into 16 pre-rotated directions (22.5 deg steps, frame =
+anim * 16 + dir).
 
-The recolors keep the trooper sheet's shading but move its black/gray
-outfit onto a blue (P3) / green (P4) hue: low-saturation dark pixels are
-re-colorized in HSV with their value boosted into the visible range, while
-the tan arms (saturated) and the bright silver gun (high value) stay put.
+Bill and Lance's source art is much smaller than Duke's (23x27 vs 31x48),
+so their frames get a 2x nearest-neighbor upscale before rotation to stand
+at trooper height on screen.
 
-Runs on repo-local sources only (scripts/art + the already-generated
-ps2/assets/player.png) — prep-assets.py's source trees aren't needed.
-Rerun after prep-assets.py regenerates player.png or sheets.js:
+Runs on repo-local sources only (scripts/art) — prep-assets.py's source
+trees aren't needed. Rerun after prep-assets.py regenerates sheets.js:
 
   python3 scripts/prep-players.py
 """
 
-import colorsys
 import json
 import math
 from pathlib import Path
@@ -33,64 +32,45 @@ SHEETS_JS = ROOT / "ps2" / "data" / "sheets.js"
 
 DIRS = 16  # 360/16 = 22.5 deg, matching util.js dirFrame()
 
+# the blue/green trooper recolors Bill and Lance replaced
+STALE = ("player-blue", "player-green")
 
-def duke_sheet():
-    """16 pre-rotated directions x 4 walk frames from duke_atlas."""
-    atlas = json.loads((ART / "duke_atlas.json").read_text())
-    img = Image.open(ART / "duke_atlas.png").convert("RGBA")
-    frames = [atlas["frames"][f"duke_{i}"]["frame"] for i in range(4)]
 
-    # cell must fit the largest frame's rotation diagonal (31x48 -> 57.2)
-    cell = 58
-    cols = 8  # 8 * 58 = 464, comfortably under the GS's 1024px limit
+def atlas_sheet(stem, out_name, upscale=1):
+    """16 pre-rotated directions x N walk frames from a scripts/art atlas.
+    Frame order follows the atlas's sorted key order (duke_0..3, atlas_s0..3)."""
+    atlas = json.loads((ART / f"{stem}.json").read_text())
+    img = Image.open(ART / f"{stem}.png").convert("RGBA")
+    frames = [atlas["frames"][k]["frame"] for k in sorted(atlas["frames"])]
+
+    # cell must fit the largest upscaled frame's rotation diagonal
+    # (duke 31x48 -> 57.2 -> 58; 8 cols keeps every sheet under the GS's
+    # 1024px texture limit)
+    w = max(f["w"] for f in frames) * upscale
+    h = max(f["h"] for f in frames) * upscale
+    cell = math.ceil(math.hypot(w, h))
+    cols = 8
     rows = math.ceil(len(frames) * DIRS / cols)
     grid = Image.new("RGBA", (cell * cols, cell * rows), (0, 0, 0, 0))
 
     base_angle = -90  # the source art natively faces up (north)
     for a, f in enumerate(frames):
-        canvas = Image.new("RGBA", (cell, cell), (0, 0, 0, 0))
         crop = img.crop((f["x"], f["y"], f["x"] + f["w"], f["y"] + f["h"]))
-        canvas.paste(crop, ((cell - f["w"]) // 2, (cell - f["h"]) // 2))
+        if upscale != 1:
+            crop = crop.resize((f["w"] * upscale, f["h"] * upscale), Image.NEAREST)
+        canvas = Image.new("RGBA", (cell, cell), (0, 0, 0, 0))
+        canvas.paste(crop, ((cell - crop.width) // 2, (cell - crop.height) // 2))
         for d in range(DIRS):
             rot = canvas.rotate(-(d * 22.5 - base_angle), resample=Image.BICUBIC)
             i = a * DIRS + d
             grid.paste(rot, ((i % cols) * cell, (i // cols) * cell))
 
-    grid.save(OUT / "duke.png")
+    grid.save(OUT / f"{out_name}.png")
     return {
-        "file": "assets/duke.png", "fw": cell, "fh": cell,
+        "file": f"assets/{out_name}.png", "fw": cell, "fh": cell,
         "count": len(frames) * DIRS, "cols": cols, "rotated": True,
         "dirs": DIRS, "anim": len(frames),
     }
-
-
-def recolor(src, dst, hue, sat):
-    """Colorize the trooper's dark low-saturation outfit pixels toward
-    (hue, sat), leaving skin (saturated) and the silver gun (bright)."""
-    img = Image.open(src).convert("RGBA")
-    px = img.load()
-    w, h = img.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a == 0:
-                continue
-            v = max(r, g, b)
-            psat = 0 if v == 0 else (v - min(r, g, b)) / v
-            # how outfit-like: fades out for bright (gun) or colorful (skin)
-            t = min(1.0, max(0.0, (170 - v) / 60.0)) * min(1.0, max(0.0, (0.45 - psat) / 0.25))
-            if t <= 0:
-                continue
-            # keep the shading but lift it into a readable color range
-            nv = min(255, int(40 + v * 2.2))
-            nr, ng, nb = (int(c * 255) for c in colorsys.hsv_to_rgb(hue, sat, nv / 255))
-            px[x, y] = (
-                int(r + (nr - r) * t),
-                int(g + (ng - g) * t),
-                int(b + (nb - b) * t),
-                a,
-            )
-    img.save(dst)
 
 
 def merge_sheets(extra):
@@ -99,6 +79,8 @@ def merge_sheets(extra):
     end = txt.rindex("};")
     sheets = json.loads(txt[start:end + 1])
     sheets.update(extra)
+    for k in STALE:
+        sheets.pop(k, None)
     lines = [
         "// GENERATED by scripts/prep-assets.py + prep-players.py — do not edit by hand.",
         "// Frame metadata for every animated/rotated sheet in ps2/assets.",
@@ -108,21 +90,14 @@ def merge_sheets(extra):
     SHEETS_JS.write_text("\n".join(lines), encoding="utf-8")
 
 
-extra = {"duke": duke_sheet()}
-
-player_meta = json.loads(
-    SHEETS_JS.read_text(encoding="utf-8")
-    .split("export const SHEETS = ", 1)[1]
-    .rsplit(";", 1)[0]
-)["player"]
-
-# ISO9660-safe underscore filenames; logical names keep hyphens
-recolor(OUT / "player.png", OUT / "player_blue.png", hue=0.58, sat=0.65)
-recolor(OUT / "player.png", OUT / "player_green.png", hue=0.36, sat=0.65)
-extra["player-blue"] = dict(player_meta, file="assets/player_blue.png")
-extra["player-green"] = dict(player_meta, file="assets/player_green.png")
+# ISO9660-safe basenames; logical skin names match
+extra = {
+    "duke": atlas_sheet("duke_atlas", "duke"),
+    "bill": atlas_sheet("bill_atlas", "bill", upscale=2),
+    "lance": atlas_sheet("lance_atlas", "lance", upscale=2),
+}
 
 merge_sheets(extra)
 for name, meta in sorted(extra.items()):
     print(f"  {name:14s} {meta['fw']}x{meta['fh']} x{meta['count']}")
-print(f"[prep-players] wrote duke.png, player_blue.png, player_green.png to {OUT}")
+print(f"[prep-players] wrote duke.png, bill.png, lance.png to {OUT}")

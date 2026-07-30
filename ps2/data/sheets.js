@@ -29,6 +29,16 @@ export const SHEETS = {
     "file": "assets/beetle_gib.png",
     "fw": 28
   },
+  "bill": {
+    "anim": 4,
+    "cols": 8,
+    "count": 64,
+    "dirs": 16,
+    "fh": 71,
+    "file": "assets/bill.png",
+    "fw": 71,
+    "rotated": true
+  },
   "blood-splat": {
     "count": 5,
     "fh": 136,
@@ -139,6 +149,16 @@ export const SHEETS = {
     "file": "assets/ion_impact.png",
     "fw": 18
   },
+  "lance": {
+    "anim": 4,
+    "cols": 8,
+    "count": 64,
+    "dirs": 16,
+    "fh": 73,
+    "file": "assets/lance.png",
+    "fw": 73,
+    "rotated": true
+  },
   "lizard": {
     "count": 8,
     "fh": 72,
@@ -186,26 +206,6 @@ export const SHEETS = {
     "dirs": 16,
     "fh": 72,
     "file": "assets/player.png",
-    "fw": 72,
-    "rotated": true
-  },
-  "player-blue": {
-    "anim": 1,
-    "cols": 8,
-    "count": 16,
-    "dirs": 16,
-    "fh": 72,
-    "file": "assets/player_blue.png",
-    "fw": 72,
-    "rotated": true
-  },
-  "player-green": {
-    "anim": 1,
-    "cols": 8,
-    "count": 16,
-    "dirs": 16,
-    "fh": 72,
-    "file": "assets/player_green.png",
     "fw": 72,
     "rotated": true
   },
