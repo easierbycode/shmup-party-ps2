@@ -5,6 +5,14 @@
 export const SCREEN_W = 640;
 export const SCREEN_H = 448;
 
+// The arena is twice the screen per axis, mirroring shmup-party-phaser4's
+// camera model: its 1680x1050 world equals one full view at min zoom and
+// half a world per axis at max/solo zoom. 2x per axis gives the same shape
+// here — the whole world fits the screen exactly at zoom 0.5 (no letterbox,
+// PS2 aspect preserved) and max zoom 1.0 draws sprites at native pixels.
+export const WORLD_W = SCREEN_W * 2;
+export const WORLD_H = SCREEN_H * 2;
+
 export function rand(min, max) {
   return min + Math.random() * (max - min);
 }

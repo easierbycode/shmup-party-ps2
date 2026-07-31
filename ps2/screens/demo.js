@@ -21,7 +21,8 @@ import { spawnEnemy, spawnDens, updateEnemies, nearestEnemy } from 'lib/enemies.
 import { Boss } from 'lib/boss.js';
 import { fx, updateFx } from 'lib/fx.js';
 import { drawTextCentered } from 'lib/text.js';
-import { SCREEN_W, SCREEN_H, rand, randInt, pick, clamp } from 'lib/util.js';
+import { updateCamera } from 'lib/camera.js';
+import { SCREEN_W, SCREEN_H, WORLD_W, WORLD_H, rand, randInt, pick, clamp } from 'lib/util.js';
 
 const GREEN = () => Color.new(156, 255, 107, 128);
 const DIM = (a) => Color.new(190, 220, 190, a);
@@ -48,9 +49,12 @@ export default class DemoScreen extends GameScreen {
     const w = this.world;
     // demo bosses just pop and the reel rolls on — no wave bookkeeping
     w.onBossDefeated = () => {
+      const bx = w.boss.centerX();
+      const by = w.boss.centerY();
+      const bk = w.boss.k;
       w.boss = null;
       w.flashT = 0.5;
-      fx(w, 'eye-explode', SCREEN_W / 2, 120, { fps: 12, scale: 3 });
+      fx(w, 'eye-explode', bx, by, { fps: 12, scale: bk });
     };
     this.t = 0;
     this.humanPort = null;
@@ -82,15 +86,17 @@ export default class DemoScreen extends GameScreen {
     w.perkOpen = null;
 
     // scripted troopers (a lone mid-arena wanderer when the node names none —
-    // MENU_COMBAT_3 is just a horde ambling over the terrain in the original)
+    // MENU_COMBAT_3 is just a horde ambling over the terrain in the original).
+    // data/demos.js spots are baked in 640x448 terms; stretch them onto the
+    // world so the reel still stages across the whole arena.
     const specs = node.troopers.length > 0
       ? node.troopers
       : [{ x: SCREEN_W / 2, y: SCREEN_H / 2, weapon: randInt(0, WEAPONS.length - 1) }];
     w.players = specs.map((spec, i) => {
       const p = makePlayer(-1, i);
       p.ai = true;
-      p.x = spec.x;
-      p.y = spec.y;
+      p.x = spec.x * (WORLD_W / SCREEN_W);
+      p.y = spec.y * (WORLD_H / SCREEN_H);
       p.weapon = spec.weapon || 0;
       p.aiT = 0;
       p.mx = 0;
@@ -99,18 +105,22 @@ export default class DemoScreen extends GameScreen {
     });
     if (this.humanPort !== null) this.seatHuman();
 
-    if (this.plan && this.plan.dens) spawnDens(w, 8); // two lizard dens + a nest
+    if (this.plan && this.plan.dens) spawnDens(w, 8); // two lizard dens, an alien den + a nest
     if (this.plan && this.plan.boss) this.bossT = 0.8;
     if (this.plan && this.plan.ring) {
       const c = w.players[0];
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2;
         const desc = this.demoDesc(pick(this.plan.types));
-        desc.x = clamp(c.x + Math.cos(a) * 175, -20, SCREEN_W + 20);
-        desc.y = clamp(c.y + Math.sin(a) * 175, -20, SCREEN_H + 20);
+        desc.x = clamp(c.x + Math.cos(a) * 175, -20, WORLD_W + 20);
+        desc.y = clamp(c.y + Math.sin(a) * 175, -20, WORLD_H + 20);
         spawnEnemy(w, desc);
       }
     }
+
+    // node cuts teleport the whole cast, so the camera cuts with them —
+    // gliding from the previous node's shot would trail the new action
+    updateCamera(w.cam, w.players, 0, true);
   }
 
   /** put the joined human in the Player 2 slot, replacing that node's AI
@@ -123,7 +133,7 @@ export default class DemoScreen extends GameScreen {
       this.humanPlayer = p;
     }
     const spot = w.players[1] || w.players[0];
-    p.x = clamp(spot.x + (w.players[1] ? 0 : 80), 40, SCREEN_W - 40);
+    p.x = clamp(spot.x + (w.players[1] ? 0 : 80), 40, WORLD_W - 40);
     p.y = spot.y;
     if (w.players[1]) w.players[1] = p;
     else w.players.push(p);
@@ -187,9 +197,9 @@ export default class DemoScreen extends GameScreen {
     }
     // shy away from the walls so a wander impulse can't pin them there
     if (p.x < 80) p.mx = Math.abs(p.mx) || 0.7;
-    else if (p.x > SCREEN_W - 80) p.mx = -(Math.abs(p.mx) || 0.7);
+    else if (p.x > WORLD_W - 80) p.mx = -(Math.abs(p.mx) || 0.7);
     if (p.y < 70) p.my = Math.abs(p.my) || 0.7;
-    else if (p.y > SCREEN_H - 70) p.my = -(Math.abs(p.my) || 0.7);
+    else if (p.y > WORLD_H - 70) p.my = -(Math.abs(p.my) || 0.7);
 
     const target = nearestEnemy(w, p.x, p.y);
     let rx = 0;
@@ -239,8 +249,8 @@ export default class DemoScreen extends GameScreen {
         this.powerupT = DEMO.powerupEvery;
         w.powerups.push({
           type: pick(POWERUPS.types),
-          x: rand(60, SCREEN_W - 60),
-          y: rand(60, SCREEN_H - 60),
+          x: rand(60, WORLD_W - 60),
+          y: rand(60, WORLD_H - 60),
           t: 0,
         });
       }
@@ -317,6 +327,8 @@ export default class DemoScreen extends GameScreen {
     this.updatePowerups(dt);
     this.updateNukes(dt);
     updateFx(w, dt);
+    // nobody dies out here, so the whole cast steers the shot
+    updateCamera(w.cam, w.players, dt);
 
     this.nodeT -= dt;
     if (this.nodeT <= 0) {

@@ -7,7 +7,13 @@
 // 5velte-ps2 shim reads the same properties). Natural texture size is
 // captured at construction because width/height double as the dest size.
 
-import { dirFrame } from 'lib/util.js';
+// Between camBegin/camEnd (lib/camera.js) coordinates are world-space: every
+// draw is offset/scaled by the active camera and skipped entirely when it
+// falls outside the screen. Outside the bracket (HUD, menus, the font sheet
+// via lib/text.js) draws stay in raw screen coordinates.
+
+import { camera } from 'lib/camera.js';
+import { SCREEN_W, SCREEN_H, dirFrame } from 'lib/util.js';
 
 export class Sheet {
   constructor(meta) {
@@ -26,8 +32,17 @@ export class Sheet {
     const { fw, fh } = this.meta;
     const img = this.img;
     const scale = opts.scale === undefined ? 1 : opts.scale;
-    const dw = opts.w === undefined ? fw * scale : opts.w;
-    const dh = opts.h === undefined ? fh * scale : opts.h;
+    let dw = opts.w === undefined ? fw * scale : opts.w;
+    let dh = opts.h === undefined ? fh * scale : opts.h;
+
+    const cam = camera();
+    if (cam) {
+      cx = (cx - cam.x) * cam.zoom + SCREEN_W / 2;
+      cy = (cy - cam.y) * cam.zoom + SCREEN_H / 2;
+      dw *= cam.zoom;
+      dh *= cam.zoom;
+      if (cx + dw / 2 < 0 || cx - dw / 2 > SCREEN_W || cy + dh / 2 < 0 || cy - dh / 2 > SCREEN_H) return;
+    }
 
     const fx = (i % this.cols) * fw;
     const fy = Math.floor(i / this.cols) * fh;
@@ -72,13 +87,25 @@ export class Pic {
       (start/end swap, same idiom as Sheet.draw) */
   draw(x, y, opts = {}) {
     const img = this.img;
+    let dw = opts.w === undefined ? this.nw : opts.w;
+    let dh = opts.h === undefined ? this.nh : opts.h;
+
+    const cam = camera();
+    if (cam) {
+      x = (x - cam.x) * cam.zoom + SCREEN_W / 2;
+      y = (y - cam.y) * cam.zoom + SCREEN_H / 2;
+      dw *= cam.zoom;
+      dh *= cam.zoom;
+      if (x + dw < 0 || x > SCREEN_W || y + dh < 0 || y > SCREEN_H) return;
+    }
+
     img.startx = opts.flipX ? this.nw : 0;
     img.endx = opts.flipX ? 0 : this.nw;
     img.starty = opts.flipY ? this.nh : 0;
     img.endy = opts.flipY ? 0 : this.nh;
     img.color = opts.color === undefined ? Color.new(255, 255, 255, 128) : opts.color;
-    img.width = opts.w === undefined ? this.nw : opts.w;
-    img.height = opts.h === undefined ? this.nh : opts.h;
+    img.width = dw;
+    img.height = dh;
     img.draw(x, y);
   }
 

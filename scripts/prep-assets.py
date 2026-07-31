@@ -432,6 +432,9 @@ repack_atlas("lizard-den", "die-", den_picks, out="lizard-den-die", src_dir=ART)
 # spider nest (repo-local loose frames, Crimsonland Android rip layout)
 crimson_strip("spider-nest", "nest", "move-%04d.png", den_picks, src=ART)
 crimson_strip("spider-nest-die", "nest", "die-%04d.png", den_picks, src=ART)
+# alien den — same repo-local loose-frame layout as the nest
+crimson_strip("alien-den", "den", "move-%04d.png", den_picks, src=ART)
+crimson_strip("alien-den-die", "den", "die-%04d.png", den_picks, src=ART)
 if CRIMSON.is_dir():
     crimson_strip("beetle", "beetle", "move-%04d.png", picks)
     crimson_gibs("beetle-gib", "beetle", "bodypart-unique-%04d.png", [1, 2, 3])

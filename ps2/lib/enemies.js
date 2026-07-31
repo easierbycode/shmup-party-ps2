@@ -1,6 +1,6 @@
 // Zombie / alien / spider / beetle / crabfly / lizard horde: wave
-// composition, edge spawning, chase / skitter / weave AI, lizard dens and
-// spider nests that hatch reinforcements, death drops. Ported from
+// composition, edge spawning, chase / skitter / weave AI, lizard dens,
+// alien dens and spider nests that hatch reinforcements, death drops. Ported from
 // wave-manager.ts + zombie.ts/alien.ts; the spider, beetle, crabfly, lizard,
 // den, nest and the tinted variants are new to the port (Crimsonland art,
 // variant stats from its creature-variants.xml via data/tuning.js).
@@ -8,7 +8,7 @@
 import { ENEMIES, VARIANTS, WAVE, POWERUPS } from 'data/tuning.js';
 import { S } from 'lib/sprites.js';
 import { fx, gibBurst } from 'lib/fx.js';
-import { SCREEN_W, SCREEN_H, rand, randInt, pick, hit, clamp } from 'lib/util.js';
+import { WORLD_W, WORLD_H, rand, randInt, pick, hit, clamp } from 'lib/util.js';
 
 let nextId = 1;
 
@@ -20,14 +20,15 @@ for (const key in VARIANTS) {
   VARIANT_POOLS[base].push(key);
 }
 
-// both stationary spawner kinds share the den AI, placement and brood logic
+// all stationary spawner kinds share the den AI, placement and brood logic
 const DENS = [
   { type: 'lizard-den', first: WAVE.denWave, max: WAVE.denMax },
+  { type: 'alien-den', first: WAVE.alienDenWave, max: WAVE.alienDenMax },
   { type: 'spider-nest', first: WAVE.nestWave, max: WAVE.nestMax },
 ];
 
 function isDen(type) {
-  return type === 'lizard-den' || type === 'spider-nest';
+  return type === 'lizard-den' || type === 'alien-den' || type === 'spider-nest';
 }
 
 /** the one place enemies are born: applies the variant skin (stats are the
@@ -121,10 +122,10 @@ export function spawnEnemy(world, desc) {
     y = desc.y;
   } else {
     const edge = desc.edge === undefined ? randInt(0, 3) : desc.edge;
-    if (edge === 0) { x = rand(20, SCREEN_W - 20); y = -30; }
-    else if (edge === 1) { x = rand(20, SCREEN_W - 20); y = SCREEN_H + 30; }
-    else if (edge === 2) { x = -30; y = rand(20, SCREEN_H - 20); }
-    else { x = SCREEN_W + 30; y = rand(20, SCREEN_H - 20); }
+    if (edge === 0) { x = rand(20, WORLD_W - 20); y = -30; }
+    else if (edge === 1) { x = rand(20, WORLD_W - 20); y = WORLD_H + 30; }
+    else if (edge === 2) { x = -30; y = rand(20, WORLD_H - 20); }
+    else { x = WORLD_W + 30; y = rand(20, WORLD_H - 20); }
   }
 
   pushEnemy(world, desc.type, desc.variant, x, y, desc.hp, desc.speed);
@@ -163,8 +164,8 @@ export function spawnDens(world, n) {
     null when nothing qualifies after a couple dozen rolls */
 function denSpot(world) {
   for (let tries = 0; tries < 24; tries++) {
-    const x = rand(70, SCREEN_W - 70);
-    const y = rand(70, SCREEN_H - 70);
+    const x = rand(70, WORLD_W - 70);
+    const y = rand(70, WORLD_H - 70);
     let ok = true;
     for (const p of world.players) {
       const dx = p.x - x;
@@ -226,8 +227,8 @@ function updateSpider(world, e, dt) {
     e.x += Math.cos(e.dartDir) * e.speed * spec.mult * dt;
     e.y += Math.sin(e.dartDir) * e.speed * spec.mult * dt;
     // darts don't home mid-flight — keep a bad heading from leaving the arena
-    e.x = clamp(e.x, -40, SCREEN_W + 40);
-    e.y = clamp(e.y, -40, SCREEN_H + 40);
+    e.x = clamp(e.x, -40, WORLD_W + 40);
+    e.y = clamp(e.y, -40, WORLD_H + 40);
     if (e.dartT <= 0) {
       e.darting = false;
       e.dartT = rand(spec.pauseMin, spec.pauseMax);
@@ -348,6 +349,7 @@ export function damageEnemy(world, e, dmg, killer) {
   else if (e.type === 'beetle') gibBurst(world, 'beetle-gib', e.x, e.y);
   else if (e.type === 'lizard') fx(world, 'lizard-die', e.x, e.y, { fps: 24, flipX: e.facingLeft, color: e.tint, scale: e.scale });
   else if (e.type === 'lizard-den') fx(world, 'lizard-den-die', e.x, e.y, { fps: 12 });
+  else if (e.type === 'alien-den') fx(world, 'alien-den-die', e.x, e.y, { fps: 12 });
   else if (e.type === 'spider-nest') fx(world, 'spider-nest-die', e.x, e.y, { fps: 12 });
   else fx(world, 'blood-splat', e.x, e.y, { fps: 30 });
 

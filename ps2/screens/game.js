@@ -14,7 +14,8 @@ import { pollPad, connectedPorts } from 'lib/input.js';
 import { buildWave, spawnEnemy, spawnDens, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
 import { Boss } from 'lib/boss.js';
 import { drawText, drawTextCentered, textWidth } from 'lib/text.js';
-import { SCREEN_W, SCREEN_H, clamp, hit, randInt } from 'lib/util.js';
+import { makeCamera, updateCamera, camBegin, camEnd } from 'lib/camera.js';
+import { SCREEN_W, SCREEN_H, WORLD_W, WORLD_H, clamp, hit, randInt } from 'lib/util.js';
 
 const WHITE = () => Color.new(255, 255, 255, 128);
 const GREEN = () => Color.new(156, 255, 107, 128);
@@ -36,8 +37,8 @@ export function makePlayer(port, index) {
     port,
     index,
     skin: PLAYER.skins[index % PLAYER.skins.length],
-    x: SCREEN_W / 2 + (index % 2 === 0 ? -60 : 60),
-    y: SCREEN_H / 2 + (index < 2 ? -40 : 40),
+    x: WORLD_W / 2 + (index % 2 === 0 ? -60 : 60),
+    y: WORLD_H / 2 + (index < 2 ? -40 : 40),
     heading: index % 2 === 0 ? 0 : Math.PI,
     hp: PLAYER.hp,
     maxHp: PLAYER.hp,
@@ -110,6 +111,7 @@ export default class GameScreen {
       slowT: 0,
       perkQueue: [],
       perkOpen: null,
+      cam: makeCamera(),
       onBossDefeated: () => this.bossDefeated(),
     };
   }
@@ -156,9 +158,12 @@ export default class GameScreen {
 
   bossDefeated() {
     const w = this.world;
+    const bx = w.boss.centerX();
+    const by = w.boss.centerY();
+    const bk = w.boss.k;
     w.boss = null;
     w.flashT = 0.5;
-    fx(w, 'eye-explode', SCREEN_W / 2, 120, { fps: 12, scale: 3 });
+    fx(w, 'eye-explode', bx, by, { fps: 12, scale: bk });
     for (const p of w.players) if (p.alive) buzz(p.port, 'bossDown');
     for (const p of w.players) if (p.alive) p.xp += BOSS.xp;
     w.score += BOSS.score;
@@ -246,6 +251,7 @@ export default class GameScreen {
     this.updatePowerups(dt);
     this.updateNukes(dt);
     updateFx(w, dt);
+    updateCamera(w.cam, alive, dt);
     this.checkWaveEnd(dt);
     void anyPad;
   }
@@ -353,8 +359,8 @@ export default class GameScreen {
     p.kbx *= Math.pow(0.002, dt);
     p.kby *= Math.pow(0.002, dt);
 
-    p.x = clamp(p.x, 20, SCREEN_W - 20);
-    p.y = clamp(p.y, 20, SCREEN_H - 20);
+    p.x = clamp(p.x, 20, WORLD_W - 20);
+    p.y = clamp(p.y, 20, WORLD_H - 20);
 
     // weapon cycling (R1)
     if (pad.just(Pads.R1)) {
@@ -487,7 +493,7 @@ export default class GameScreen {
       b.t += dt;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
-      let dead = b.t > b.life || b.x < -20 || b.x > SCREEN_W + 20 || b.y < -20 || b.y > SCREEN_H + 20;
+      let dead = b.t > b.life || b.x < -20 || b.x > WORLD_W + 20 || b.y < -20 || b.y > WORLD_H + 20;
 
       if (!dead) {
         for (const e of [...w.enemies]) {
@@ -522,7 +528,7 @@ export default class GameScreen {
       b.t += dt;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
-      let dead = b.x < -20 || b.x > SCREEN_W + 20 || b.y < -20 || b.y > SCREEN_H + 20;
+      let dead = b.x < -20 || b.x > WORLD_W + 20 || b.y < -20 || b.y > WORLD_H + 20;
       if (!dead) {
         for (const p of w.players) {
           if (!p.alive || p.invulnT > 0 || p.giantT > 0) continue;
@@ -664,7 +670,21 @@ export default class GameScreen {
       swaps the HUD for its own attract overlay */
   renderWorld() {
     const w = this.world;
-    P(this.terrain.pic).draw(0, 0, { flipX: this.terrain.flipX, flipY: this.terrain.flipY });
+    camBegin(w.cam);
+
+    // floor: the screen-sized baked terrain mirror-tiled 2x2 across the
+    // world — adjacent tiles flip so every seam is a reflection (continuous
+    // by construction), and the per-run random flips keep the 12-arena
+    // variety. Offscreen tiles cull in Pic.draw.
+    const t = P(this.terrain.pic);
+    for (let ty = 0; ty < WORLD_H / SCREEN_H; ty++) {
+      for (let tx = 0; tx < WORLD_W / SCREEN_W; tx++) {
+        t.draw(tx * SCREEN_W, ty * SCREEN_H, {
+          flipX: this.terrain.flipX !== (tx % 2 === 1),
+          flipY: this.terrain.flipY !== (ty % 2 === 1),
+        });
+      }
+    }
 
     // powerups (blink near expiry)
     for (const pu of w.powerups) {
@@ -695,6 +715,8 @@ export default class GameScreen {
     for (const b of w.enemyBullets) {
       bb.draw(bb.frameAt(b.t, 12), b.x, b.y, { scale: 2 });
     }
+
+    camEnd();
 
     if (w.flashT > 0) {
       const a = Math.min(1, w.flashT / 0.4) * 100;

@@ -7,6 +7,18 @@ export const SHEETS = {
     "file": "assets/alien.png",
     "fw": 72
   },
+  "alien-den": {
+    "count": 8,
+    "fh": 64,
+    "file": "assets/alien_den.png",
+    "fw": 64
+  },
+  "alien-den-die": {
+    "count": 8,
+    "fh": 64,
+    "file": "assets/alien_den_die.png",
+    "fw": 64
+  },
   "barrier": {
     "anim": 2,
     "cols": 8,

@@ -1,12 +1,13 @@
 // The Evil Brain — ported from evil-brain.ts. A composite of top (brain),
-// bottom (jaw) and two damageable eyes, drawn at scale 2 (the original's
-// scale 4 assumes a 1680x1050 world). Kills require destroying both eyes.
+// bottom (jaw) and two damageable eyes, drawn at scale 3 (the original's
+// scale 4 in its 1680-wide world covers the same fraction of this 1280-wide
+// one). Kills require destroying both eyes.
 
 import { BOSS } from 'data/tuning.js';
 import { S } from 'lib/sprites.js';
 import { fx } from 'lib/fx.js';
 import { nearestPlayer, hordeTint } from 'lib/enemies.js';
-import { SCREEN_W } from 'lib/util.js';
+import { WORLD_W, WORLD_H } from 'lib/util.js';
 
 // part layout in unscaled container coords (from the original's constructor)
 const TOP = { x: 0, y: 0, w: 96, h: 58 };
@@ -26,8 +27,10 @@ export class Boss {
     this.k = k;
     this.w = TOP.w * k;
     this.h = (TOP.h + BOTTOM.h) * k;
-    this.x = SCREEN_W / 2 - this.w / 2; // container top-left
-    this.y = 14;
+    // container top-left: centered, a hair above the world middle — the
+    // original spawns at (width/2 - 48*k, height/2 - 57*k - 100)
+    this.x = WORLD_W / 2 - this.w / 2;
+    this.y = WORLD_H / 2 - TOP.h * k - 76;
     this.animT = 0;
     this.fireT = BOSS.fireInterval * 0.5;
     this.prefire = null; // {t}

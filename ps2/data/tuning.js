@@ -1,6 +1,8 @@
-// Gameplay numbers in one place. Tuned for the 640x448 single-screen arena
-// (the Phaser original plays on a 1680x1050 scrolling world, so speeds and
-// counts are scaled down while keeping the original's feel and ratios).
+// Gameplay numbers in one place. Speeds, radii and offsets are in art
+// pixels, matching the Phaser original's absolute values (player 150-ish,
+// zombie 75, same sprites) — the arena is the 1280x896 world from
+// lib/util.js, watched through lib/camera.js the way the original watches
+// its 1680x1050 world.
 
 export const PLAYER = {
   hp: 3,
@@ -62,6 +64,14 @@ export const ENEMIES = {
     hp: 800, speed: 0, radius: 22, anim: 8, xp: 50, score: 1000, // DenLizardWeak
     spawn: { every: 2.8, maxAlive: 4, hatch: 'lizard', pool: [null, null, 'blue-lizard', 'yellow-lizard'] },
   },
+  // alien egg pod (Crimsonland's alien-den art): aliens keep walking in from
+  // the world edges as always — this just adds a floor source that drips
+  // them out mid-arena. No 1:1 creature-variants source at hand; stats sit
+  // between DenLizardWeak and DenSpiderBasic, brood slower but meaner.
+  'alien-den': {
+    hp: 900, speed: 0, radius: 20, anim: 8, xp: 55, score: 2000,
+    spawn: { every: 3.0, maxAlive: 3, hatch: 'alien', pool: [null, null, 'blue-alien', 'alien-ghost'] },
+  },
   // spider egg cluster — the lizard den's meaner cousin: tougher, larger
   // brood, and every hatchling is a tinted spider variant (blue spiders
   // are the house specialty, as in Crimsonland's spider dens)
@@ -113,6 +123,8 @@ export const WAVE = {
   crabflyWave: 5,      // first wave crabflies can appear
   denWave: 4,          // first wave lizard dens can appear
   denMax: 3,           // alive-den cap (survivors carry over between waves)
+  alienDenWave: 5,     // first wave alien dens can appear
+  alienDenMax: 2,      // alive alien-den cap (survivors carry over)
   nestWave: 6,         // first wave spider nests can appear
   nestMax: 2,          // alive-nest cap (survivors carry over, like dens)
   variantWave: 3,      // first wave tinted variants can roll
@@ -126,14 +138,14 @@ export const WAVE = {
 };
 
 export const BOSS = {
-  scale: 2,
+  scale: 3,            // original: 4 in a 1680-wide world; 3/1280 ≈ same share
   eyeHp: 1500,
   blinkEvery: 250,     // eye damage between blink phases
   blinkTime: 0.75,
   fireInterval: 2.2,
   bulletSpeed: 220,
   bulletRadius: 14,
-  touchRadius: 90,
+  touchRadius: 135,    // was 90 at scale 2 — keeps pace with the bigger body
   xp: 200,
   // the Evil Brain has no Crimsonland source; SpiderBoss (4500) is the
   // closest experience_worth tier among its bosses
