@@ -19,6 +19,13 @@ import GameOverScreen from 'screens/gameover.js';
 // it the interlaced 640x448 framebuffer shows alternating black scanlines on
 // hardware — see ps2-ryu's main.js. The browser shim has no setMode.
 if (typeof Screen.setMode === 'function') Screen.setMode(Screen.getMode());
+// AthenaEnv's current (owl-renderer) builds boot with GS depth testing on but
+// never allocate a Z-buffer, so Z reads/writes alias framebuffer memory:
+// every other flip shows an all-black buffer and any sprite drawn over
+// already-bright pixels loses the depth test and vanishes. This 2D game
+// draws strictly painter's-order, so turn depth testing off (the 2019-ps2
+// port does the same; the browser and Switch hosts have no setParam).
+if (typeof Screen.setParam === 'function') Screen.setParam(Screen.DEPTH_TEST_ENABLE, 0);
 Screen.setVSync(true);
 initAudio();
 
