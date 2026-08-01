@@ -3,3 +3,10 @@ dist
 *.iso
 .DS_Store
 __pycache__/
+
+# switch build output (romfs is staged by scripts/stage-switch-romfs.mjs)
+switch/romfs/
+switch/build/
+switch/*.nro
+switch/*.elf
+switch/*.nacp

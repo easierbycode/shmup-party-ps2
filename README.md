@@ -5,7 +5,7 @@
 Twin-stick survival shooter, ported from
 [shmup-party-sp](https://github.com/easierbycode/shmup-party-sp) (Svelte 5 +
 Phaser 4) to [5velte-ps2](https://github.com/easierbycode/svelte-ps2) — the
-AthenaEnv v4 compatibility layer. **One JS codebase, two targets:**
+AthenaEnv v4 compatibility layer. **One JS codebase, three targets:**
 
 - **Real PS2 / PCSX2 / Play!** — [`ps2/`](ps2/) is a complete
   [AthenaEnv](https://github.com/DanielSant0s/AthenaEnv) app (athena.elf +
@@ -14,6 +14,12 @@ AthenaEnv v4 compatibility layer. **One JS codebase, two targets:**
   5velte-ps2's host: [`src/web/ps2-scene.ts`](src/web/ps2-scene.ts) installs
   AthenaEnv's globals (`Screen`, `Draw`, `Image`, `Pads`, …), imports
   `ps2/main.js`, and ticks the runtime every frame.
+- **Nintendo Switch (homebrew)** — the same modules a third time, on
+  [quickjs-ng](https://github.com/quickjs-ng/quickjs) + SDL2 via the native
+  host in [`switch/`](switch/): ~1.5k lines of C (devkitPro/libnx) implement
+  the same globals and evaluate `ps2/main.js` out of romfs, producing a
+  `.nro` for hbmenu on CFW (Atmosphère). See
+  [Nintendo Switch build](#nintendo-switch-build).
 
 Download page + browser build + ISO deploy to
 **<https://easierbycode.com/shmup-party-ps2/>** on every push to `main`
@@ -26,11 +32,45 @@ npm install
 npm run dev        # browser build at http://localhost:5173/play/
 npm run build      # production build (base /shmup-party-ps2/)
 npm run iso        # deno-powered ISO9660 writer -> shmup-party-ps2.iso
+npm run nro        # Switch homebrew build -> switch/shmup-party.nro
 npm run assets     # regenerate ps2/assets from ../shmup-party-sp art + sfx (PIL, ffmpeg)
 ```
 
 The ISO boots in PCSX2, in the CMG launcher's PlayStation 2 screen (the
 Play! WASM emulator), and on softmodded hardware (OPL / DVD-R).
+
+## Nintendo Switch build
+
+`npm run nro` stages `ps2/` into `switch/romfs/`
+([`scripts/stage-switch-romfs.mjs`](scripts/stage-switch-romfs.mjs) — JS +
+PNGs + the `.wav` sfx twins) and compiles the host, trying in order: a
+`DEVKITPRO` env with `make` on PATH, an MSYS2 install with the devkitPro
+pacman packages at `C:\msys64` (`pacman -S pkgconf switch-dev switch-sdl2
+switch-sdl2_image switch-sdl2_mixer` after adding the
+[devkitPro repos](https://devkitpro.org/wiki/devkitPro_pacman)), then Docker
+(`devkitpro/devkita64` + portlibs,
+[`switch/builder.Dockerfile`](switch/builder.Dockerfile), cached after the
+first run). Clone with `--recurse-submodules` — quickjs-ng is vendored at
+`switch/vendor/quickjs`.
+
+Dev loop against real hardware: hbmenu → **Y** (netloader), then
+
+```sh
+nxlink -s switch/shmup-party.nro
+```
+
+streams stdout — including JS stack traces — back over WiFi. For a
+PC-free install copy the NRO to `sd:/switch/shmup-party.nro`.
+
+Switch specifics: buttons map by **position** (bottom face button = CROSS =
+fire/confirm, ZR also fires), up to four controllers hot-join like the other
+targets, rumble works, and the leaderboard shows OFFLINE — the host defines
+no network globals (yet), which
+[`ps2/lib/leaderboard.js`](ps2/lib/leaderboard.js) handles by design. CI
+builds the NRO as a private run artifact on every push
+([.github/workflows/switch.yml](.github/workflows/switch.yml)); since the
+art is ripped, the NRO is for personal use on your own console — don't
+publish it.
 
 ## Controls
 
