@@ -1,17 +1,10 @@
 # Build the Nintendo Switch homebrew NRO (switch/ host + ps2/ game tree).
-# The NRO stays a private, retention-limited run artifact — the baked art is
-# ripped (Crimsonland/Contra/Pac-Man), fine for personal homebrew on owned
-# hardware, not for publication.
+# Called by deploy.yml on every push to main, which publishes the NRO on the
+# download page next to the PS2 ISO (both carry the same baked art).
 name: Switch NRO
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'ps2/**'
-      - 'switch/**'
-      - 'scripts/stage-switch-romfs.mjs'
-      - '.github/workflows/switch.yml'
+  workflow_call:
   workflow_dispatch:
 
 permissions:

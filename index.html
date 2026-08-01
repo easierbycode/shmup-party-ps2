@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sh'M↑ Party — PlayStation 2</title>
-    <meta name="description" content="Sh'M↑ Party for PlayStation 2 — download the ISO or play in the browser." />
+    <meta name="description" content="Sh'M↑ Party for PlayStation 2 — download the Switch homebrew NRO or the PS2 ISO, or play in the browser." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -114,6 +114,35 @@
         color: rgba(4, 30, 12, 0.75);
       }
 
+      /* Nintendo-red twin of btn-primary for the Switch build */
+      .btn-switch {
+        font-weight: 800;
+        font-size: 17px;
+        color: #fff;
+        border-color: rgba(255, 110, 120, 0.55);
+        background: linear-gradient(180deg, #ff4554 0%, #e60012 55%, #6e0009 160%);
+        box-shadow:
+          0 0 22px rgba(230, 0, 18, 0.4),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      }
+
+      .btn-switch:hover {
+        transform: translateY(-2px);
+        box-shadow:
+          0 0 34px rgba(230, 0, 18, 0.65),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      }
+
+      .btn-switch .hint {
+        display: block;
+        font-family: 'Share Tech Mono', monospace;
+        font-weight: 400;
+        font-size: 11px;
+        letter-spacing: 0.2em;
+        margin-top: 4px;
+        color: rgba(255, 220, 224, 0.85);
+      }
+
       .btn-secondary {
         font-weight: 700;
         font-size: 13px;
@@ -174,6 +203,10 @@
       <div class="sub">TWIN-STICK SURVIVAL // ATHENAENV // 5VELTE-PS2</div>
 
       <div class="buttons">
+        <a class="btn btn-switch" href="./shmup-party.nro" download>
+          ⬇ DOWNLOAD SWITCH NRO
+          <span class="hint">shmup-party.nro — hbmenu on Atmosphère CFW</span>
+        </a>
         <a class="btn btn-primary" href="./shmup-party-ps2.iso" download>
           ⬇ DOWNLOAD PS2 ISO
           <span class="hint">shmup-party-ps2.iso — boots on PS2 / PCSX2 / Play!</span>
@@ -182,8 +215,9 @@
       </div>
 
       <div class="howto">
-        <h2>HOW TO PLAY THE ISO</h2>
+        <h2>HOW TO PLAY</h2>
         <ul>
+          <li><b>Switch (CFW):</b> copy <b>shmup-party.nro</b> to <b>sd:/switch/</b> and launch from hbmenu (Atmosphère). Fire is the bottom face button, ZR also fires.</li>
           <li><b>Emulator:</b> open the ISO in PCSX2, or in the CMG launcher's PlayStation 2 screen (Play!).</li>
           <li><b>Real hardware:</b> load over USB/SMB with Open PS2 Loader, or burn to DVD-R (softmodded console).</li>
           <li><b>Controls:</b> left stick move · right stick aim + fire · CROSS auto-aim · L1 barrier dash · R1 cycle weapon · START pause.</li>

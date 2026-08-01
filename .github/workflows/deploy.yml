@@ -1,8 +1,9 @@
-# Build the web app + the bootable PS2 ISO, then publish both to GitHub
-# Pages: https://easierbycode.com/shmup-party-ps2/
+# Build the web app + the bootable PS2 ISO + the Switch homebrew NRO, then
+# publish all three to GitHub Pages: https://easierbycode.com/shmup-party-ps2/
 #   /                    Xbox-green download page
 #   /play/               browser build (5velte-ps2 Phaser host)
 #   /shmup-party-ps2.iso the AthenaEnv disc image (also a run artifact)
+#   /shmup-party.nro     the Switch homebrew build (switch.yml, reusable)
 name: Deploy
 
 on:
@@ -20,7 +21,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  nro:
+    uses: ./.github/workflows/switch.yml
+
   build:
+    needs: nro
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +46,12 @@ jobs:
 
       - name: Build PS2 ISO
         run: deno run --allow-read --allow-write scripts/build-athena-iso.ts ps2 dist/shmup-party-ps2.iso
+
+      - name: Fetch Switch NRO from the nro job
+        uses: actions/download-artifact@v4
+        with:
+          name: shmup-party-nro
+          path: dist
 
       - uses: actions/upload-pages-artifact@v3
         with:
