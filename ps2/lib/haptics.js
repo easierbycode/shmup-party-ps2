@@ -22,6 +22,7 @@ function send(port, big, small) {
 }
 
 export function buzz(port, kind) {
+  if (port < 0) return; // virtual pads (demo AI, remote net players) have no motor
   const spec = HAPTICS[kind];
   let list = pulses.get(port);
   if (!list) pulses.set(port, (list = []));

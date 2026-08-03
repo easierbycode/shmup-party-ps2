@@ -53,8 +53,10 @@ function athenaEnsureNet() {
   return athenaNetUp;
 }
 
-/** POST via whichever transport exists; cb(bodyText|null). PS2 is sync. */
-function post(path, body, contentType, cb) {
+/** POST via whichever transport exists; cb(bodyText|null). PS2 is sync.
+    Shared with lib/net.js — the multiplayer relay lives in the same
+    SpacetimeDB database and speaks the same HTTP API. */
+export function post(path, body, contentType, cb) {
   if (hasFetch) {
     fetch(url(path), {
       method: 'POST',
@@ -99,8 +101,21 @@ export function submitScore(entry, cb) {
     first; cb(rows|null). Also refreshes topCache on success. */
 export function fetchTop(cb) {
   post('sql', 'SELECT * FROM score', 'text/plain', (text) => {
-    const rows = parseSqlRows(text);
-    if (rows) {
+    const raw = parseSqlRows(text);
+    let rows = null;
+    if (raw) {
+      rows = [];
+      for (const row of raw) {
+        const score = Number(row.score);
+        if (typeof row.name !== 'string' || !isFinite(score)) continue;
+        rows.push({
+          name: row.name,
+          score,
+          wave: Number(row.wave) || 0,
+          kills: Number(row.kills) || 0,
+          players: Number(row.players) || 0,
+        });
+      }
       rows.sort((a, b) => b.score - a.score);
       topCache = rows;
     }
@@ -110,8 +125,10 @@ export function fetchTop(cb) {
 
 /** SQL responses are [{schema, rows}] with rows as positional ProductValues
     (arrays matching the schema's element order); some encodings use objects
-    keyed by column name instead. Handle both, drop anything unreadable. */
-function parseSqlRows(text) {
+    keyed by column name instead. Handle both; returns plain row objects
+    keyed by column name (null on anything unreadable). Shared with
+    lib/net.js. */
+export function parseSqlRows(text) {
   if (!text) return null;
   try {
     const stmts = JSON.parse(text);
@@ -121,16 +138,7 @@ function parseSqlRows(text) {
     const out = [];
     for (const raw of stmt.rows) {
       const row = Array.isArray(raw) ? byNames(raw, names) : raw;
-      if (!row) continue;
-      const score = Number(row.score);
-      if (typeof row.name !== 'string' || !isFinite(score)) continue;
-      out.push({
-        name: row.name,
-        score,
-        wave: Number(row.wave) || 0,
-        kills: Number(row.kills) || 0,
-        players: Number(row.players) || 0,
-      });
+      if (row) out.push(row);
     }
     return out;
   } catch (_) {

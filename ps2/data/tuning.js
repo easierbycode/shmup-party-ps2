@@ -154,13 +154,29 @@ export const BOSS = {
 
 // Global Survival leaderboard over SpacetimeDB's HTTP API (lib/leaderboard.js).
 // Anonymous calls: submit via the submitScore reducer, read via SQL on the
-// public score table. Point an OPL/LAN build at a local instance by swapping
-// host for e.g. 'http://192.168.0.10:3000'.
+// public score table. The same database also carries auto multiplayer (see
+// NET below and lib/net.js), so host/db point both at once. Run a LAN or
+// offline party against a local instance by swapping host for e.g.
+// 'http://192.168.0.10:3000' after `spacetime start`.
 export const LEADERBOARD = {
   host: 'https://maincloud.spacetimedb.com',
-  db: 'shmup-party-leaderboard',
+  db: 'shmup-party',
   top: 10,       // rows shown on the game-over board
   titleTop: 3,   // rows on the title screen (what fits above PRESS START)
+};
+
+// Auto multiplayer over the same SpacetimeDB database (lib/net.js): the
+// hosting machine streams world snapshots, remote machines relay pad input,
+// everyone else spectates. Browser-only — the PS2/Switch transports can't
+// sustain the poll rates, so those hosts keep offline local play.
+export const NET = {
+  enabled: true,
+  seats: 4,        // max simultaneous players; overflow spectates
+  presenceMs: 1000, // title-screen polling (who's online?)
+  pollMs: 120,     // arena/seat polling while spectating or hosting
+  inputMs: 90,     // remote player pad-state sends
+  snapMs: 125,     // host snapshot publishes (~8Hz)
+  staleMs: 5000,   // arena seq frozen this long = the host is gone
 };
 
 export const POWERUPS = {

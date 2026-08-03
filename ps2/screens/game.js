@@ -2,8 +2,13 @@
 // twin-stick players (right stick aims + fires, auto-aim on CROSS for
 // stickless setups), R1 cycles weapons, L1 barrier-dash, START pauses,
 // SELECT restarts. Endless waves with the Evil Brain every 5th wave.
+//
+// Auto multiplayer (browser hosts only): starting a run also claims the
+// SpacetimeDB host seat and streams world snapshots to spectators; occupied
+// remote seats appear as extra players driven by their relayed pad state
+// (netTick below). With no network this screen is exactly the offline game.
 
-import { PLAYER, WEAPONS, WAVE, POWERUPS, PERKS, XP_PER_LEVEL, BOSS } from 'data/tuning.js';
+import { PLAYER, WEAPONS, WAVE, POWERUPS, PERKS, XP_PER_LEVEL, BOSS, NET } from 'data/tuning.js';
 import { TERRAINS } from 'data/terrains.js';
 import { S, P } from 'lib/sprites.js';
 import { fx, updateFx, renderFx } from 'lib/fx.js';
@@ -15,7 +20,8 @@ import { buildWave, spawnEnemy, spawnDens, updateEnemies, renderEnemies, damageE
 import { Boss } from 'lib/boss.js';
 import { drawText, drawTextCentered, textWidth } from 'lib/text.js';
 import { makeCamera, updateCamera, camBegin, camEnd } from 'lib/camera.js';
-import { SCREEN_W, SCREEN_H, WORLD_W, WORLD_H, clamp, hit, randInt } from 'lib/util.js';
+import { SCREEN_W, SCREEN_H, WORLD_W, WORLD_H, clamp, hit, randInt, pick } from 'lib/util.js';
+import * as netlib from 'lib/net.js';
 
 const WHITE = () => Color.new(255, 255, 255, 128);
 const GREEN = () => Color.new(156, 255, 107, 128);
@@ -73,6 +79,7 @@ export default class GameScreen {
     this.makeWorld();
     this.joined = new Set();
     for (const port of connectedPorts()) this.join(port);
+    this.netInit();
     this.nextWave();
   }
 
@@ -81,8 +88,10 @@ export default class GameScreen {
     // (scripts/prep-terrains.py), randomly mirrored — the flips are free at
     // draw time, so 3 PNGs read as 12 arenas. The demo reel shares this via
     // its own makeWorld() call.
+    const terrainIdx = randInt(0, TERRAINS.survival.variants - 1);
     this.terrain = {
-      pic: `terrain-survival-${randInt(0, TERRAINS.survival.variants - 1)}`,
+      idx: terrainIdx, // snapshots send the index so spectators match floors
+      pic: `terrain-survival-${terrainIdx}`,
       flipX: Math.random() < 0.5,
       flipY: Math.random() < 0.5,
     };
@@ -117,19 +126,24 @@ export default class GameScreen {
   }
 
   /** how player p reads its pad this frame — the demo screen answers with a
-      synthetic pad for its AI troopers */
+      synthetic pad for its AI troopers, netPadFor for remote seats */
   padFor(p) {
+    if (p.netSeat !== undefined) return this.netPadFor(p.netSeat);
     return pollPad(p.port);
   }
 
   onExit() {
     stopHaptics();
+    this.netShutdown();
   }
 
   join(port) {
     if (this.joined.has(port)) return;
     this.joined.add(port);
     this.world.players.push(makePlayer(port, this.world.players.length));
+    // a hotplugged pad also claims a network seat so spectators can't
+    // overbook the arena (fire and forget; offline it plays local anyway)
+    this.netClaimLocal(port, false);
   }
 
   banner(text, color, big) {
@@ -173,6 +187,197 @@ export default class GameScreen {
     this.banner(`WAVE ${w.wave} CLEAR`, GREEN());
   }
 
+  // ── network relay (host side) ─────────────────────────────────────────────
+
+  /** claim the SpacetimeDB host seat and one seat per extra local pad. A
+      SELECT restart keeps the live session (and its remote players' seats);
+      everything else starts fresh. No-op offline. */
+  netInit() {
+    this.netOver = false;
+    if (this.netSession && !this.netSession.overSent) return;
+    this.netShutdown();
+    if (!netlib.netAvailable()) return;
+    const ses = {
+      hosting: false, // true once seat 0 is confirmed ours
+      overSent: false,
+      seq: 0,
+      keys: new Map(), // seat -> bearer key, for the seats this machine owns
+      portSeats: new Map(), // local pad port -> seat
+      pendingPorts: new Set(),
+      myTags: new Set(), // this machine's claim tags, in-flight ones included
+      rows: new Map(), // remote seat -> latest polled seat row
+      prevButtons: new Map(),
+      edges: new Map(), // remote seat -> unconsumed press edges (NETB bits)
+    };
+    this.netSession = ses;
+    const first = [...this.joined][0];
+    ses.pendingPorts.add(first);
+    const hostTag = netlib.join(true, (seat, key) => {
+      ses.pendingPorts.delete(first);
+      if (this.netSession !== ses) return;
+      if (seat === null) {
+        // lost a hosting race (or the module isn't reachable): play local
+        this.netSession = null;
+        return;
+      }
+      ses.hosting = true;
+      ses.keys.set(seat, key);
+      ses.portSeats.set(first, seat);
+    });
+    if (hostTag) ses.myTags.add(hostTag);
+  }
+
+  /** a local pad beyond the first also books a seat, so remote spectators
+      can't overbook the 4-player arena */
+  netClaimLocal(port) {
+    const ses = this.netSession;
+    if (!ses || !ses.hosting) return;
+    if (ses.portSeats.has(port) || ses.pendingPorts.has(port)) return;
+    ses.pendingPorts.add(port);
+    const tag = netlib.join(false, (seat, key) => {
+      ses.pendingPorts.delete(port);
+      if (this.netSession !== ses || seat === null) return;
+      ses.keys.set(seat, key);
+      ses.portSeats.set(port, seat);
+    });
+    if (tag) ses.myTags.add(tag);
+  }
+
+  netShutdown() {
+    const ses = this.netSession;
+    if (!ses) return;
+    this.netSession = null;
+    // seat 0 leaving ends the game server-side, freeing everyone
+    for (const [seat, key] of ses.keys) netlib.leave(seat, key);
+  }
+
+  /** once per frame: pull remote pads in, push a world snapshot out */
+  netTick() {
+    const ses = this.netSession;
+    if (!ses || !ses.hosting) return;
+    // pads that arrived while the host seat was still pending claim late
+    for (const port of this.joined) this.netClaimLocal(port);
+
+    netlib.pollSeats(NET.pollMs);
+    const seats = netlib.net.seats;
+    if (seats) {
+      for (const row of seats) {
+        // skip our own seats — including claims still in flight, whose rows
+        // can appear occupied a beat before the join callback lands
+        if (!row.occupied || ses.keys.has(row.seat) || ses.myTags.has(row.tag)) continue;
+        ses.rows.set(row.seat, row);
+        // rising edges accumulate until a sim frame consumes them, so taps
+        // survive both the 90ms relay and pause/perk frames
+        const prev = ses.prevButtons.get(row.seat) || 0;
+        ses.edges.set(row.seat, (ses.edges.get(row.seat) || 0) | (row.buttons & ~prev));
+        ses.prevButtons.set(row.seat, row.buttons);
+        if (!this.world.players.some((p) => p.netSeat === row.seat)) {
+          let idx = 0;
+          while (this.world.players.some((q) => q.index === idx)) idx++;
+          const p = makePlayer(-1, idx);
+          p.netSeat = row.seat;
+          p.netTag = row.tag; // seat re-claimed by someone else = new player
+          this.world.players.push(p);
+          sfx('button_press');
+          this.banner(`PLAYER ${idx + 1} JOINED`, GREEN());
+        }
+      }
+      // a freed seat (leave or heartbeat eviction) takes its trooper along
+      for (let i = this.world.players.length - 1; i >= 0; i--) {
+        const p = this.world.players[i];
+        if (p.netSeat === undefined) continue;
+        const row = seats.find((r) => r.seat === p.netSeat);
+        if (row && row.occupied && row.tag === p.netTag) continue;
+        this.world.players.splice(i, 1);
+        ses.rows.delete(p.netSeat);
+        ses.prevButtons.delete(p.netSeat);
+        ses.edges.delete(p.netSeat);
+        this.banner(`PLAYER ${p.index + 1} LEFT`, YELLOW());
+      }
+    }
+
+    if (ses.overSent) return;
+    const hostKey = ses.keys.get(0);
+    if (hostKey === undefined || !netlib.canPublish()) return;
+    ses.seq++;
+    const over = !!this.netOver;
+    netlib.publish(0, hostKey, ses.seq, this.world.wave, this.world.score, over, this.netSnapshotJson());
+    // over=true is the run's last word — the server frees every seat on it
+    if (over) ses.overSent = true;
+  }
+
+  /** the relayed pad of a remote seat, shaped like pollPad's answer */
+  netPadFor(seat) {
+    const ses = this.netSession;
+    const row = ses && ses.rows.get(seat);
+    const edges = (ses && ses.edges.get(seat)) || 0;
+    return {
+      held: (mask) => !!(row && row.buttons & netlib.netBits(mask)),
+      just: (mask) => !!(edges & netlib.netBits(mask)),
+      lx: row ? row.lx : 0,
+      ly: row ? row.ly : 0,
+      rx: row ? row.rx : 0,
+      ry: row ? row.ry : 0,
+    };
+  }
+
+  /** compact JSON world state for spectators (screens/spectate.js decodes;
+      positions rounded to the pixel, timers to 10ms). Everything a remote
+      renderWorld/renderHud needs, nothing the host-side sim keeps private. */
+  netSnapshotJson() {
+    const w = this.world;
+    const ses = this.netSession;
+    const r1 = Math.round;
+    const r2 = (v) => Math.round(v * 100) / 100;
+    const t0 = (v) => (v > 0 ? r2(v) : 0);
+    const pl = w.players.map((p) => {
+      let seat = -1;
+      if (p.netSeat !== undefined) seat = p.netSeat;
+      else if (ses && ses.portSeats.has(p.port)) seat = ses.portSeats.get(p.port);
+      return [
+        seat,
+        PLAYER.skins.indexOf(p.skin),
+        r1(p.x), r1(p.y), r2(p.heading),
+        p.alive ? 1 : 0,
+        t0(p.invulnT), t0(p.dashT), r2(p.dashDir), t0(p.giantT), t0(p.chompT), r2(p.chompAng),
+        p.hp, p.maxHp, p.weapon, p.level,
+      ];
+    });
+    const en = w.enemies.map((e) => [
+      e.id,
+      netlib.ENEMY_TYPES.indexOf(e.type),
+      e.variant ? netlib.VARIANT_KEYS.indexOf(e.variant) : -1,
+      r1(e.x), r1(e.y), e.facingLeft ? 1 : 0,
+    ]);
+    const bu = w.bullets.map((b) => [WEAPONS.indexOf(b.spec), r1(b.x), r1(b.y), r2(b.heading), r2(b.t)]);
+    const eb = w.enemyBullets.map((b) => [r1(b.x), r1(b.y), r1(b.vx), r1(b.vy), r2(b.t)]);
+    const pu = w.powerups.map((u) => [POWERUPS.types.indexOf(u.type), r1(u.x), r1(u.y), r2(u.t)]);
+    const fxs = [];
+    for (const e of w.effects) {
+      if (e.gib) continue; // debris isn't worth the bytes at 8Hz
+      fxs.push([e.sheet, r1(e.x), r1(e.y), r2(e.t), e.fps, e.scale === 1 ? 1 : r2(e.scale), e.flipX ? 1 : 0]);
+    }
+    const nk = w.nukes.map((n) => [r1(n.x), r1(n.y), r2(n.t)]);
+    let bo = 0;
+    if (w.boss) {
+      bo = [t0(w.boss.dying), w.boss.prefire ? r2(w.boss.prefire.t) : -1, r1(w.boss.hpRatio() * 100)];
+      for (const eye of w.boss.eyes) bo.push(eye.alive ? 1 : 0, t0(eye.blinkT));
+    }
+    const bn = w.banner
+      ? [w.banner.text, Color.getR(w.banner.color), Color.getG(w.banner.color), Color.getB(w.banner.color), w.banner.scale, r2(w.banner.t)]
+      : 0;
+    return JSON.stringify({
+      tr: [this.terrain.idx, this.terrain.flipX ? 1 : 0, this.terrain.flipY ? 1 : 0],
+      wv: w.wave,
+      sc: w.score,
+      fz: t0(w.freezeT),
+      sl: t0(w.slowT),
+      fl: t0(w.flashT),
+      pa: w.paused ? 1 : 0,
+      bn, pl, en, bu, eb, pu, fxs, nk, bo,
+    });
+  }
+
   // ── update ────────────────────────────────────────────────────────────────
 
   update(dt) {
@@ -183,10 +388,18 @@ export default class GameScreen {
     updateHaptics(dt);
     tickAudio(dt);
 
+    // network relay: remote pads in, snapshots out. Above the early returns
+    // so spectators keep seeing a paused/leveling/ending world.
+    this.netTick();
+
     // controller hotplug (a second PS2 pad joins mid-run)
     for (const port of connectedPorts()) this.join(port);
 
-    // perk overlay swallows the frame
+    // perk overlay swallows the frame; remote players pick like the demo's
+    // bots do — a 90ms input relay is no way to browse a menu
+    while (w.perkQueue.length > 0 && w.perkQueue[0].netSeat !== undefined) {
+      this.applyPerk(w.perkQueue.shift(), pick(PERKS));
+    }
     if (w.perkOpen) {
       this.updatePerkOverlay();
       return;
@@ -216,11 +429,16 @@ export default class GameScreen {
     if (w.players.length > 0 && alive.length === 0) {
       this.banner('GAME OVER', RED(), true);
       w.overT = 2.5;
+      // the next published snapshot carries over=true, which frees every
+      // seat server-side and sends the spectators home
+      this.netOver = true;
       return;
     }
 
-    // pause — any player's START
+    // pause — any local player's START (a remote pad can't hold the world
+    // hostage; their exit is leaving the game)
     for (const p of w.players) {
+      if (p.netSeat !== undefined) continue;
       const pad = pollPad(p.port);
       if (pad.just(Pads.START)) w.paused = !w.paused;
       if (pad.just(Pads.SELECT)) {
@@ -244,6 +462,8 @@ export default class GameScreen {
     const edt = w.slowT > 0 ? dt * POWERUPS.reflexScale : dt;
     this.updateSpawning(dt);
     for (const p of w.players) this.updatePlayer(p, dt);
+    // remote press edges are one-frame events, consumed by the loop above
+    if (this.netSession) this.netSession.edges.clear();
     updateEnemies(w, edt);
     if (w.boss) w.boss.update(w.boss.dying > 0 ? dt : edt);
     this.updateBullets(dt);

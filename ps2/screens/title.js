@@ -1,6 +1,12 @@
 // Title screen: logo, global best, PRESS START. Any pad's START (or CROSS)
 // drops into the arena — matching the menu flow of the Svelte original,
 // trimmed to the survival mode the port ships.
+//
+// Auto multiplayer routing (browser hosts): the title quietly polls the
+// SpacetimeDB lobby. START joins a live networked run when one exists
+// (hosting a fresh one otherwise), and the idle timeout rolls into the demo
+// reel only when nobody's playing anywhere — with 1+ players online it
+// drops into spectator mode instead.
 
 import { screens } from 'lib/screens.js';
 import { sfx, tickAudio } from 'lib/audio.js';
@@ -8,8 +14,9 @@ import { pollPad, connectedPorts } from 'lib/input.js';
 import { P } from 'lib/sprites.js';
 import { drawTextCentered } from 'lib/text.js';
 import { SCREEN_W, SCREEN_H } from 'lib/util.js';
-import { LEADERBOARD, DEMO } from 'data/tuning.js';
+import { LEADERBOARD, DEMO, NET } from 'data/tuning.js';
 import { fetchTop, topCache } from 'lib/leaderboard.js';
+import { netAvailable, pollSeats, pollArena, gameLive, activeSeats } from 'lib/net.js';
 
 const GREEN = () => Color.new(156, 255, 107, 128);
 const DIM = (a) => Color.new(190, 220, 190, a);
@@ -31,18 +38,25 @@ export default class TitleScreen {
     this.t += dt;
     this.idleT += dt;
     tickAudio(dt); // the sfx throttle's clock only advances while a screen ticks
+    if (netAvailable()) {
+      pollSeats(NET.presenceMs);
+      pollArena(NET.presenceMs);
+    }
     for (const port of connectedPorts()) {
       const pad = pollPad(port);
       if (pad.held(ANY_BUTTON()) || pad.lx || pad.ly || pad.rx || pad.ry) this.idleT = 0;
       if (pad.just(Pads.START) || pad.just(Pads.CROSS)) {
         sfx('button_press');
-        screens.change('game');
+        // a live networked run wants joiners, not rival hosts
+        if (netAvailable() && gameLive()) screens.change('spectate', { autoJoin: true, port });
+        else screens.change('game');
         return;
       }
     }
-    // left alone long enough, the title rolls the Crimsonland demo reel
+    // left alone long enough: spectate whoever's playing out there, or roll
+    // the Crimsonland demo reel when the lobby is empty
     if (this.idleT >= DEMO.idle) {
-      screens.change('demo');
+      screens.change(netAvailable() && gameLive() ? 'spectate' : 'demo');
       return;
     }
   }
@@ -66,6 +80,17 @@ export default class TitleScreen {
 
     if (Math.floor(this.t * 2) % 2 === 0) {
       drawTextCentered(SCREEN_W / 2, SCREEN_H / 2 + 36, 'PRESS START', { scale: 2, color: GREEN() });
+    }
+
+    // live lobby: START joins that game instead of starting a fresh one
+    if (netAvailable() && gameLive()) {
+      const n = activeSeats();
+      drawTextCentered(
+        SCREEN_W / 2,
+        SCREEN_H / 2 + 66,
+        `LIVE: ${n} PLAYER${n === 1 ? '' : 'S'} ONLINE - START JOINS`,
+        { color: Color.new(255, 214, 120, 110) },
+      );
     }
 
     drawTextCentered(SCREEN_W / 2, SCREEN_H - 30, "SH'M UP PARTY - PS2 - 5VELTE-PS2 x ATHENAENV", { color: DIM(70) });

@@ -1,5 +1,5 @@
 {
   "server": "maincloud",
   "module-path": "./spacetimedb",
-  "database": "shmup-party-leaderboard"
+  "database": "shmup-party"
 }
