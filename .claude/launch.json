@@ -10,8 +10,8 @@
     },
     {
       "name": "cmg-dev",
-      "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/danieljohnson/CODE/cmg && deno task dev"],
+      "runtimeExecutable": "deno",
+      "runtimeArgs": ["task", "--cwd", "../cmg", "dev:vite", "--port", "5173"],
       "port": 5173
     }
   ]
