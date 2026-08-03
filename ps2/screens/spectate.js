@@ -11,9 +11,9 @@
 // PRESS START claims a free seat (max 4 players; overflow keeps watching):
 // from then on this machine relays its pad through the seat row and the
 // host plays it as a live player — you watch yourself through the stream.
-// TRIANGLE backs out to the title (leaving the seat if one was claimed).
-// The run ending — or the host going quiet for NET.staleMs — sends
-// everyone home.
+// SELECT (or TRIANGLE on a real pad) backs out to the title, leaving the
+// seat if one was claimed. The run ending — or the host going quiet for
+// NET.staleMs — sends everyone home.
 
 import GameScreen from 'screens/game.js';
 import { PLAYER, WEAPONS, VARIANTS, POWERUPS, NET } from 'data/tuning.js';
@@ -36,6 +36,12 @@ const AMBER = () => Color.new(255, 214, 120, 120);
 // how hard mirrored positions chase their snapshot targets (per second);
 // ~70% of the remaining error closes between two 125ms snapshots
 const LERP_RATE = 10;
+
+// Back out / leave. SELECT carries this rather than TRIANGLE alone because
+// spectating only ever runs on the browser host (netAvailable gates it),
+// and that host's keyboard map has no TRIANGLE — leaving keyboard players
+// with no way out. TRIANGLE stays for anyone on a real pad.
+const backPressed = (pad) => pad.just(Pads.SELECT) || pad.just(Pads.TRIANGLE);
 
 export default class SpectateScreen extends GameScreen {
   onEnter(opts) {
@@ -146,7 +152,7 @@ export default class SpectateScreen extends GameScreen {
         if (netlib.sendInput(this.mySeat, this.myKey, pad.lx, pad.ly, pad.rx, pad.ry, buttons)) {
           this.latch = 0;
         }
-        if (pad.just(Pads.TRIANGLE)) {
+        if (backPressed(pad)) {
           sfx('button_press');
           screens.change('title');
           return;
@@ -154,7 +160,7 @@ export default class SpectateScreen extends GameScreen {
         continue;
       }
       if (pad.just(Pads.START)) this.tryJoin(port);
-      if (pad.just(Pads.TRIANGLE)) {
+      if (backPressed(pad)) {
         sfx('button_press');
         screens.change('title');
         return;
@@ -353,7 +359,7 @@ export default class SpectateScreen extends GameScreen {
       if (Math.floor(this.t * 2) % 2 === 0) {
         drawTextCentered(SCREEN_W / 2, SCREEN_H / 2 - 10, 'FINDING GAME...', { scale: 2, color: GREEN() });
       }
-      drawTextCentered(SCREEN_W / 2, SCREEN_H - 30, 'TRIANGLE: BACK', { color: DIM(80) });
+      drawTextCentered(SCREEN_W / 2, SCREEN_H - 30, 'SELECT: BACK', { color: DIM(80) });
       return;
     }
 
@@ -373,9 +379,9 @@ export default class SpectateScreen extends GameScreen {
             ? 'GAME FULL - A FREE SEAT LETS YOU IN'
             : 'PRESS START TO JOIN';
         drawTextCentered(SCREEN_W / 2, SCREEN_H - 48, label, { color: GREEN() });
-        drawTextCentered(SCREEN_W / 2, SCREEN_H - 26, 'TRIANGLE: BACK', { color: DIM(90) });
+        drawTextCentered(SCREEN_W / 2, SCREEN_H - 26, 'SELECT: BACK', { color: DIM(90) });
       } else {
-        drawTextCentered(SCREEN_W / 2, SCREEN_H - 26, 'TRIANGLE: LEAVE GAME', { color: DIM(70) });
+        drawTextCentered(SCREEN_W / 2, SCREEN_H - 26, 'SELECT: LEAVE GAME', { color: DIM(70) });
       }
     }
     if (this.message && this.messageT > 0) {
