@@ -8,6 +8,47 @@
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Sh'M↑ Party PS2 — Play</title>
+    <style>
+      /* The cursor belongs to a keyboard-and-mouse desk only. A touchscreen or
+         a gamepad means the pointer is dead weight parked over the playfield.
+         This has to live here rather than in the cmg launcher's stylesheet: the
+         game runs in an iframe, and the inner document owns the cursor
+         wherever the pointer is over it. */
+      body.no-cursor,
+      body.no-cursor * { cursor: none !important; }
+    </style>
+    <script>
+      // Pads only materialize in getGamepads() after a button press, so this is
+      // re-checked on the connect events and on a slow poll rather than once at
+      // load. In the cmg launcher the parent frame owns the pad (it dispatches
+      // keys down into this iframe), so its pad list counts as ours — the frame
+      // is same-origin there, and the try/catch covers every other host.
+      (function () {
+        function anyPad() {
+          try {
+            var pp = window.parent;
+            if (pp && pp !== window && pp.navigator && pp.navigator.getGamepads) {
+              var pg = pp.navigator.getGamepads() || [];
+              for (var i = 0; i < pg.length; i++) if (pg[i] && pg[i].connected) return true;
+            }
+          } catch (_) { /* cross-origin host — fall through to our own pads */ }
+          var lg = (navigator.getGamepads && navigator.getGamepads()) || [];
+          for (var j = 0; j < lg.length; j++) if (lg[j] && lg[j].connected) return true;
+          return false;
+        }
+        var isTouch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+        function refresh() {
+          // This script runs in <head>, so a pad connecting early can beat the
+          // body into existence.
+          if (!document.body) return;
+          document.body.classList.toggle('no-cursor', isTouch || anyPad());
+        }
+        window.addEventListener('gamepadconnected', refresh);
+        window.addEventListener('gamepaddisconnected', refresh);
+        document.addEventListener('DOMContentLoaded', refresh);
+        setInterval(refresh, 1000);
+      })();
+    </script>
   </head>
   <body>
     <script type="module" src="../src/index.ts"></script>
