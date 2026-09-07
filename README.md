@@ -23,7 +23,10 @@ AthenaEnv v4 compatibility layer. **One JS codebase, three targets:**
 
 Download page + browser build + ISO deploy to
 **<https://easierbycode.com/shmup-party-ps2/>** on every push to `main`
-([.github/workflows/deploy.yml](.github/workflows/deploy.yml)).
+([.github/workflows/deploy.yml](.github/workflows/deploy.yml)), with the
+[Wave Editor](#wave-editor) at `/wave-editor/` and a launcher zip of the
+browser build (`shmup-party-ps2-web.zip`, see [Launchers](#launchers))
+beside them.
 
 ## Run
 
@@ -33,11 +36,65 @@ npm run dev        # browser build at http://localhost:5173/play/
 npm run build      # production build (base /shmup-party-ps2/)
 npm run iso        # deno-powered ISO9660 writer -> shmup-party-ps2.iso
 npm run nro        # Switch homebrew build -> switch/shmup-party.nro
+npm run launcher-zip  # the browser build at a relative base path, zipped for launchers
 npm run assets     # regenerate ps2/assets from ../shmup-party-sp art + sfx (PIL, ffmpeg)
 ```
 
 The ISO boots in PCSX2, in the CMG launcher's PlayStation 2 screen (the
 Play! WASM emulator), and on softmodded hardware (OPL / DVD-R).
+
+## Launchers
+
+The Pages build is rooted at `/shmup-party-ps2/` (every asset URL in it is
+absolute), so a launcher cannot unpack it under a folder of its own.
+[`scripts/build-launcher-zip.ts`](scripts/build-launcher-zip.ts) — `npm run
+launcher-zip`, and a step of the deploy — builds the browser game once more
+with `BASE_PATH=./` (every URL relative to its own files, so it runs from any
+mount point) and zips `play/` + `assets/` into `dist/shmup-party-ps2-web.zip`.
+The deploy publishes that beside the site at
+<https://easierbycode.com/shmup-party-ps2/shmup-party-ps2-web.zip>, which is
+what the [shmupX launcher](https://github.com/easierbycode/shmupX.github.io)'s
+eShop installs (entry `play/index.html`, served from `/eshop/shmup-party-ps2/`
+by its service worker): the same commit, the same build the site's PLAY IN
+BROWSER runs. The zip is written by a small pure-Deno zip writer — nothing
+to install on the runner.
+
+[`codemonkey.json`](codemonkey.json) at the repo root is what the game says
+about itself to a launcher (the cmg launcher's convention): its **release
+status** — `EARLY_ACCESS` today — which the shmupX eShop reads off `main`
+for the catalog row and its filter, and again from the zip's root (the
+script packs the file) when the game is installed. Set it to `RELEASED`
+(or drop the field) when the port leaves early access.
+
+## Wave Editor
+
+<https://easierbycode.com/shmup-party-ps2/wave-editor/> (`/wave-editor/` on
+the dev server; also in the CMG Desktop's Tools folder) authors
+[`ps2/data/waves.js`](ps2/data/waves.js): enemies placed on the 1280x896
+world, wave by wave, drawn with the game's own sheets — every base type and
+every Crimsonland variant from `data/tuning.js` is a brush, tinted the way the
+game tints it, with the hp and speed the current wave would give it in the
+tooltip. Placement modes drop one enemy, a line, a ring, a scatter, or a
+handful of random off-world edge spots; enemies drag, right-click deletes,
+a wave can be marked as the Evil Brain, and there is undo, a 64px grid and
+autosave. It is a port of shmup-party-phaser4's `wave-editor.html` to this
+port's arena, roster and file format.
+
+The arena ([`ps2/screens/game.js`](ps2/screens/game.js), through
+[`ps2/lib/waves.js`](ps2/lib/waves.js)) plays wave *n* as `WAVES[n - 1]`
+exactly as written — dens and nests land at their spots at wave start, the
+rest trickle in from theirs at the usual pace, blank stats take the wave's
+scaling, `boss: true` is the Evil Brain — and past the end of the list the
+procedural waves of `lib/enemies.js` (and their every-fifth-wave boss) take
+over, so the shipped empty list is the game as before. **SAVE** downloads
+`waves.js` to drop into `ps2/data/` (the ISO, the NRO and the web build all
+bake it in), **LOAD** reads one back, and **TEST** opens
+`play/?waves=local&wave=<n>&offline=1` — the browser build on the list being
+edited, straight at the wave on screen, as a local run (without `offline`,
+START joins whatever arena the lobby says is live). Those query strings are
+read by [`src/web/waves-param.ts`](src/web/waves-param.ts) on the play page
+only; `?waves=` also takes a base64url JSON list inline. Real hardware sees
+the baked file and nothing else.
 
 ## Nintendo Switch build
 

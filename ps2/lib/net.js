@@ -26,7 +26,10 @@ import { post, parseSqlRows } from 'lib/leaderboard.js';
 const hasFetch = typeof fetch === 'function';
 
 export function netAvailable() {
-  return hasFetch && NET.enabled;
+  // SHMUP_OFFLINE: the browser host's play/?offline=1 (the Wave Editor's
+  // TEST sets it — a wave under test must run locally, not join whatever
+  // arena is live in the lobby). Real hardware never sets it.
+  return hasFetch && NET.enabled && !globalThis.SHMUP_OFFLINE;
 }
 
 // canonical enemy/variant orderings for compact snapshots — both ends run

@@ -1,5 +1,6 @@
 node_modules
 dist
+dist-launcher
 *.iso
 .DS_Store
 __pycache__/

@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => {
     // GitHub Pages serves this at /shmup-party-ps2/, but the build is also
     // vendored into other hosts (the cmg launcher mounts it under
     // /games/shmup-party-ps2/), so allow the mount point to be overridden.
+    // BASE_PATH=./ is a build that runs from ANY mount point — what
+    // scripts/build-launcher-zip.ts packs for the shmupX eShop.
     base: process.env.BASE_PATH || (isProduction ? '/shmup-party-ps2/' : '/'),
     // honour an assigned dev port (tooling sets PORT to run parallel servers)
     server: { port: Number(process.env.PORT) || 5173 },
@@ -33,10 +35,12 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       rolldownOptions: {
-        // index.html is the Xbox-green download page; play/ is the game
+        // index.html is the Xbox-green download page; play/ is the game;
+        // wave-editor/ authors ps2/data/waves.js with the game's own sheets
         input: {
           main: fileURLToPath(new URL('./index.html', import.meta.url)),
           play: fileURLToPath(new URL('./play/index.html', import.meta.url)),
+          waveEditor: fileURLToPath(new URL('./wave-editor/index.html', import.meta.url)),
         },
         output: {
           codeSplitting: {

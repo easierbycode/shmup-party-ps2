@@ -2,8 +2,12 @@
 # publish all three to GitHub Pages: https://easierbycode.com/shmup-party-ps2/
 #   /                    Xbox-green download page
 #   /play/               browser build (5velte-ps2 Phaser host)
+#   /wave-editor/        the Wave Editor (authors ps2/data/waves.js)
 #   /shmup-party-ps2.iso the AthenaEnv disc image (also a run artifact)
 #   /shmup-party.nro     the Switch homebrew build (switch.yml, reusable)
+#   /shmup-party-ps2-web.zip  the browser build at a relative base path, for
+#                        launchers that install it under a folder of their
+#                        own (the shmupX eShop) — scripts/build-launcher-zip.ts
 name: Deploy
 
 on:
@@ -46,6 +50,9 @@ jobs:
 
       - name: Build PS2 ISO
         run: deno run --allow-read --allow-write scripts/build-athena-iso.ts ps2 dist/shmup-party-ps2.iso
+
+      - name: Build the launcher zip (relative base path, any mount point)
+        run: deno run --allow-read --allow-write --allow-run --allow-env scripts/build-launcher-zip.ts dist/shmup-party-ps2-web.zip
 
       - name: Fetch Switch NRO from the nro job
         uses: actions/download-artifact@v4

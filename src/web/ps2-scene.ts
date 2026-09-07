@@ -9,6 +9,7 @@ import { createPhaserHost } from '5velte-ps2/phaser'
 import { WebPadSource } from './pad-source.ts'
 import { makeMultiPads } from './multi-pads.ts'
 import { makeSoundShim } from './sound-shim.ts'
+import { installWavesOverride } from './waves-param.ts'
 
 const assetUrls = import.meta.glob('../../ps2/assets/*.png', {
   eager: true,
@@ -76,6 +77,9 @@ export default class Ps2Scene extends Phaser.Scene {
     g.NEAREST = r.NEAREST
     g.LINEAR = r.LINEAR
 
+    // ?waves= / ?wave= (the Wave Editor's TEST) must be parked on their
+    // globals before the game's first nextWave() reads them
+    installWavesOverride()
     import('../../ps2/main.js').then(() => {
       this.ready = true
     })

@@ -147,17 +147,63 @@ export function spawnDens(world, n) {
     for (let i = alive; i < want; i++) {
       const spot = denSpot(world);
       if (!spot) break;
-      const den = pushEnemy(world, kind.type, null, spot.x, spot.y, Math.round(base.hp * hpScale), 0);
-      // hatch clock plus the wave scaling its brood is born with
-      den.spawnT = rand(1, base.spawn.every);
-      den.brood = 0;
-      den.hatchScale = hpScale;
-      den.hatchBonus = 3 * n;
-      fx(world, 'smoke', spot.x, spot.y, { fps: 20, scale: 2 });
+      placeDen(world, kind.type, spot.x, spot.y, Math.round(base.hp * hpScale), n);
       placed++;
     }
   }
   return placed;
+}
+
+/** a den on the floor at (x, y), its hatch clock wound and the wave-n
+    scaling its brood will be born with */
+function placeDen(world, type, x, y, hp, n) {
+  const base = ENEMIES[type];
+  const den = pushEnemy(world, type, null, x, y, hp, 0);
+  den.spawnT = rand(1, base.spawn.every);
+  den.brood = 0;
+  den.hatchScale = 1 + 0.08 * (n - 1);
+  den.hatchBonus = 3 * n;
+  fx(world, 'smoke', x, y, { fps: 20, scale: 2 });
+  return den;
+}
+
+/** stage an authored wave (data/waves.js, via lib/waves.js) as wave n:
+    dens and nests land on the floor at once, the way spawnDens drops the
+    procedural ones, and everything else becomes a descriptor for the
+    trickle — at its spot, from its edge, or from a random edge. Stats the
+    author left blank take the same wave scaling buildWave() applies; an
+    unknown type, or a variant of another base, is skipped rather than
+    crashing the run. Returns { pending, placed }, placed being the dens for
+    waveTotal. */
+export function stageAuthoredWave(world, wave, n) {
+  const hpScale = 1 + 0.08 * (n - 1);
+  const pending = [];
+  let placed = 0;
+  for (const a of Array.isArray(wave.enemies) ? wave.enemies : []) {
+    if (!a || !ENEMIES[a.type]) continue;
+    const v = a.variant ? VARIANTS[a.variant] : null;
+    const variant = v && v.base === a.type ? a.variant : undefined;
+    const stats = variant ? v : ENEMIES[a.type];
+    const hp = typeof a.hp === 'number' ? a.hp : Math.round(stats.hp * hpScale);
+    const speed = typeof a.speed === 'number' ? a.speed : stats.speed + 3 * n;
+    const pinned = typeof a.x === 'number' && typeof a.y === 'number';
+    if (isDen(a.type)) {
+      const spot = pinned ? { x: a.x, y: a.y } : denSpot(world);
+      if (!spot) continue;
+      placeDen(world, a.type, spot.x, spot.y, hp, n);
+      placed++;
+      continue;
+    }
+    const desc = { type: a.type, variant, hp, speed };
+    if (pinned) {
+      desc.x = a.x;
+      desc.y = a.y;
+    } else if (a.edge === 0 || a.edge === 1 || a.edge === 2 || a.edge === 3) {
+      desc.edge = a.edge;
+    }
+    pending.push(desc);
+  }
+  return { pending, placed };
 }
 
 /** a floor spot clear of the walls, every living player and other dens;

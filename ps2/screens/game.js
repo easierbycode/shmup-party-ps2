@@ -16,7 +16,8 @@ import { buzz, updateHaptics, stopHaptics } from 'lib/haptics.js';
 import { sfx, tickAudio } from 'lib/audio.js';
 import { screens } from 'lib/screens.js';
 import { pollPad, connectedPorts } from 'lib/input.js';
-import { buildWave, spawnEnemy, spawnDens, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
+import { buildWave, spawnEnemy, spawnDens, stageAuthoredWave, updateEnemies, renderEnemies, damageEnemy, nearestEnemy } from 'lib/enemies.js';
+import { authoredWave, startWave } from 'lib/waves.js';
 import { Boss } from 'lib/boss.js';
 import { drawText, drawTextCentered, textWidth } from 'lib/text.js';
 import { makeCamera, updateCamera, camBegin, camEnd } from 'lib/camera.js';
@@ -80,6 +81,9 @@ export default class GameScreen {
     this.joined = new Set();
     for (const port of connectedPorts()) this.join(port);
     this.netInit();
+    // the Wave Editor's TEST opens the browser build straight at the wave
+    // being edited (play/?wave=n); everywhere else a run opens on wave 1
+    this.world.wave = startWave() - 1;
     this.nextWave();
   }
 
@@ -155,12 +159,24 @@ export default class GameScreen {
     w.wave++;
     w.waveKills = 0;
     w.breatherT = 0;
-    if (w.wave % WAVE.bossEvery === 0) {
+    // an authored wave (data/waves.js — the Wave Editor's output) plays as
+    // written, boss flag included; past the list the procedural roster and
+    // its every-fifth-wave boss take over
+    const authored = authoredWave(w.wave);
+    if (authored ? !!authored.boss : w.wave % WAVE.bossEvery === 0) {
       this.banner('BOSS INCOMING!', RED());
       for (const p of w.players) if (p.alive) buzz(p.port, 'bossIncoming');
       w.pending = [];
       w.waveTotal = 1;
       w.bossPendingT = 1.6;
+    } else if (authored) {
+      this.banner(`WAVE ${w.wave}`, WHITE());
+      const staged = stageAuthoredWave(w, authored, w.wave);
+      w.pending = staged.pending;
+      w.waveTotal = staged.pending.length + staged.placed;
+      // an authored wave with nothing in it could never clear: sit out the
+      // breather and move on
+      if (w.waveTotal === 0) w.breatherT = WAVE.breather;
     } else {
       this.banner(`WAVE ${w.wave}`, WHITE());
       w.pending = buildWave(w.wave);

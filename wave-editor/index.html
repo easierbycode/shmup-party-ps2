@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sh'M↑ Party — Wave Editor</title>
+    <style>
+      :root {
+        --bg: #050a06;
+        --panel: #0b1a0e;
+        --line: rgba(140, 255, 110, 0.22);
+        --green: #9cff6b;
+        --yellow: #f6ff4a;
+        --red: #ff5a5a;
+        --text: rgba(220, 255, 180, 0.85);
+        --dim: rgba(220, 255, 180, 0.45);
+        --mono: 'Share Tech Mono', ui-monospace, Consolas, 'Courier New', monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.4 var(--mono);
+        overflow: hidden;
+      }
+
+      #app {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        height: 100%;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      header h1 {
+        margin: 0 10px 0 0;
+        font-size: 13px;
+        letter-spacing: 0.22em;
+        color: var(--green);
+        white-space: nowrap;
+      }
+
+      header .wave {
+        min-width: 150px;
+        color: var(--yellow);
+        letter-spacing: 0.1em;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      button,
+      label.btn {
+        font: inherit;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text);
+        background: rgba(20, 60, 25, 0.55);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 5px 10px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      button:hover,
+      label.btn:hover {
+        border-color: var(--green);
+        color: var(--green);
+      }
+
+      button.primary {
+        background: rgba(156, 255, 107, 0.16);
+        color: var(--green);
+      }
+
+      button.danger:hover {
+        border-color: var(--red);
+        color: var(--red);
+      }
+
+      button.on {
+        background: var(--green);
+        color: #06120a;
+        border-color: var(--green);
+      }
+
+      button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1fr 292px;
+        min-height: 0;
+      }
+
+      #stage {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        background: #020402;
+      }
+
+      #stage canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        cursor: crosshair;
+      }
+
+      aside {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px;
+        overflow: auto;
+        border-left: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      aside h2 {
+        margin: 0 0 6px;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        color: var(--yellow);
+      }
+
+      #palette {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+      }
+
+      #palette button {
+        padding: 3px 2px 2px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 9px;
+        line-height: 1.1;
+        overflow: hidden;
+      }
+
+      #palette button span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #palette canvas {
+        width: 40px;
+        height: 40px;
+        image-rendering: pixelated;
+      }
+
+      .modes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .nums {
+        display: grid;
+        grid-template-columns: auto 1fr auto 1fr;
+        gap: 4px 6px;
+        align-items: center;
+        color: var(--dim);
+        font-size: 11px;
+      }
+
+      .nums input {
+        width: 100%;
+        font: inherit;
+        color: var(--text);
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        padding: 3px 5px;
+      }
+
+      #summary {
+        color: var(--dim);
+        font-size: 11px;
+        min-height: 1.4em;
+      }
+
+      #summary b {
+        color: var(--text);
+        font-weight: normal;
+      }
+
+      #waves {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      #waves button {
+        padding: 3px 7px;
+        font-size: 11px;
+      }
+
+      #waves button.boss {
+        color: var(--red);
+      }
+
+      #waves button.on {
+        color: #06120a;
+      }
+
+      footer {
+        display: flex;
+        gap: 18px;
+        padding: 5px 12px;
+        border-top: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--dim);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+      }
+
+      footer b {
+        color: var(--text);
+        font-weight: normal;
+      }
+
+      #help {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 5;
+        max-width: 360px;
+        padding: 12px 16px;
+        background: rgba(4, 16, 8, 0.92);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font-size: 12px;
+      }
+
+      #help h3 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        letter-spacing: 0.2em;
+        color: var(--green);
+      }
+
+      #help p {
+        margin: 3px 0;
+      }
+
+      #help b {
+        display: inline-block;
+        min-width: 92px;
+        color: var(--yellow);
+        font-weight: normal;
+      }
+
+      #help[hidden] {
+        display: none;
+      }
+
+      #toast {
+        position: absolute;
+        left: 50%;
+        bottom: 16px;
+        z-index: 6;
+        transform: translateX(-50%);
+        padding: 8px 14px;
+        background: rgba(4, 16, 8, 0.95);
+        border: 1px solid var(--green);
+        border-radius: 4px;
+        color: var(--green);
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+        white-space: pre-line;
+      }
+
+      #toast.on {
+        opacity: 1;
+      }
+
+      @media (max-width: 760px) {
+        main {
+          grid-template-columns: 1fr;
+          grid-template-rows: 1fr auto;
+        }
+
+        aside {
+          max-height: 42vh;
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>SH'M↑ PARTY // WAVE EDITOR</h1>
+        <button id="prev" title="Previous wave (←)">◀</button>
+        <span class="wave" id="wave-label">WAVE 1 / 1</span>
+        <button id="next" title="Next wave (→)">▶</button>
+        <button id="new" title="New wave after this one (N)">New</button>
+        <button id="dup" title="Duplicate this wave">Dup</button>
+        <button id="boss" title="This wave is the Evil Brain (B)">Boss</button>
+        <button id="clear" class="danger" title="Clear this wave (Delete)">Clear</button>
+        <button id="del" class="danger" title="Remove this wave">Remove</button>
+        <span class="spacer"></span>
+        <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+        <button id="redo" title="Redo (Ctrl+Y)">Redo</button>
+        <button id="grid" title="Toggle the 64px grid (G)">Grid</button>
+        <label class="btn" title="Load a waves.js or .json (L)">Load<input id="load" type="file" accept=".js,.json,application/json,text/javascript" hidden /></label>
+        <button id="save" title="Download waves.js (S)">Save</button>
+        <button id="copy" title="Copy waves.js to the clipboard">Copy</button>
+        <button id="test" class="primary" title="Play this list in the browser build, from this wave (T)">▶ Test</button>
+        <button id="help-btn" title="Controls (H)">?</button>
+      </header>
+      <main>
+        <div id="stage">
+          <canvas id="canvas"></canvas>
+          <div id="help" hidden>
+            <h3>CONTROLS</h3>
+            <p><b>Left click</b> place with the brush</p>
+            <p><b>Drag</b> move an enemy</p>
+            <p><b>Right click</b> delete an enemy</p>
+            <p><b>← →</b> previous / next wave</p>
+            <p><b>N / B</b> new wave / boss wave</p>
+            <p><b>Delete</b> selected enemy, else clear the wave</p>
+            <p><b>1 – 9</b> pick a brush</p>
+            <p><b>G</b> grid on / off</p>
+            <p><b>Ctrl+Z / Y</b> undo / redo</p>
+            <p><b>S / L / T</b> save / load / test</p>
+            <p><b>H</b> this panel</p>
+            <p style="margin-top:8px;color:var(--dim)">The dashed frame is the 1280×896 world; the band around it is off-screen, where an enemy placed there walks in from. Dens and nests sit where you put them; everything else trickles in at the game's pace.</p>
+          </div>
+          <div id="toast"></div>
+        </div>
+        <aside>
+          <section>
+            <h2>BRUSH</h2>
+            <div id="palette"></div>
+          </section>
+          <section>
+            <h2>PLACEMENT</h2>
+            <div class="modes" id="modes"></div>
+            <div class="nums" style="margin-top:6px">
+              <label for="count">count</label><input id="count" type="number" min="1" max="60" value="5" />
+              <label for="spacing">spacing</label><input id="spacing" type="number" min="8" max="400" value="48" />
+              <label for="radius">radius</label><input id="radius" type="number" min="16" max="600" value="120" />
+              <label for="spread">spread</label><input id="spread" type="number" min="16" max="600" value="160" />
+            </div>
+          </section>
+          <section>
+            <h2>THIS WAVE</h2>
+            <div id="summary"></div>
+          </section>
+          <section>
+            <h2>WAVES</h2>
+            <div id="waves"></div>
+          </section>
+        </aside>
+      </main>
+      <footer>
+        <span id="pos">—</span>
+        <span id="brush-status"></span>
+        <span class="spacer"></span>
+        <span id="hint">left click places · right click deletes · H for help</span>
+      </footer>
+    </div>
+    <script type="module" src="../src/wave-editor/main.ts"></script>
+  </body>
+</html>

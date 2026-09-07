@@ -11,6 +11,7 @@
     "assets": "python3 scripts/prep-assets.py",
     "terrains": "python3 scripts/prep-terrains.py",
     "iso": "deno run --allow-read --allow-write scripts/build-athena-iso.ts ps2 shmup-party-ps2.iso",
+    "launcher-zip": "deno run --allow-read --allow-write --allow-run --allow-env scripts/build-launcher-zip.ts",
     "nro": "node scripts/stage-switch-romfs.mjs && node scripts/build-switch-nro.mjs"
   },
   "dependencies": {
