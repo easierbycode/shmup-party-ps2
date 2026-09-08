@@ -92,6 +92,13 @@ jobs:
 
   deploy:
     needs: build
+    # Skipping propagates down the whole `needs` graph, not just one edge:
+    # build clearing the nro failure for itself does not clear it here, and a
+    # job that defaults to success() reads the graph, not its parent's
+    # conclusion. Run 32 proved it — build went green, published the pages
+    # artifact, and this job skipped anyway, so the site still did not ship.
+    # Gate on build's own result instead.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
