@@ -8,12 +8,21 @@
 // answer per-port like real hardware does. The base 5velte-ps2 runtime is
 // single-port (its Pads.getConnected() hard-returns [0]); makeMultiPads in
 // ./multi-pads.ts wraps this source to provide the per-port Pads global.
+//
+// Port 0 is also where touch lands: attachTouch() folds ./touch-controls.ts in
+// beside the keyboard, so the launcher's Touch Twin-Stick sticks (which arrive
+// as a pad carrying analog axes and no buttons at all) get the one button they
+// are missing.
 
 import { PAD_BUTTONS } from '5velte-ps2'
 import type { PadSource } from '5velte-ps2/phaser'
+import { isTouchPadId, type TouchControls } from './touch-controls.ts'
 
 /** PS2 multitap tops out at 4 controllers, and so does the game. */
 export const MAX_PORTS = 4
+
+/** a stick this far off centre counts as a hand on the glass */
+const TOUCH_ACTIVE_AXIS = 0.12
 
 export type AxisName = 'lx' | 'ly' | 'rx' | 'ry'
 
@@ -66,6 +75,7 @@ interface PortState {
 
 export class WebPadSource implements PadSource {
   private keysDown = new Set<string>()
+  private touch?: TouchControls
   /** slots[port] = the Gamepad.index driving that port, or null if free */
   private slots: Array<number | null> = new Array(MAX_PORTS).fill(null)
   private state: PortState[] = Array.from({ length: MAX_PORTS }, () => ({
@@ -96,6 +106,11 @@ export class WebPadSource implements PadSource {
   destroy() {
     window.removeEventListener('keydown', this.onKeyDown)
     window.removeEventListener('keyup', this.onKeyUp)
+  }
+
+  /** fold the on-screen touch controls into port 0 */
+  attachTouch(touch: TouchControls) {
+    this.touch = touch
   }
 
   /** call once per frame, before runtime.tick() */
@@ -138,6 +153,56 @@ export class WebPadSource implements PadSource {
       }
       s.cur = mask
     }
+
+    this.mergeTouch(live)
+  }
+
+  /**
+   * Touch rides on port 0, alongside the keyboard.
+   *
+   * Its axes only override the port when this build owns the sticks itself
+   * (a cross-origin launcher); inside the same-origin launcher the sticks
+   * already arrived as gamepad axes above and only the START press is ours.
+   * Either way the touch controls are told whether hands are on the sticks, so
+   * the START button can keep out of the way while they are.
+   */
+  private mergeTouch(live: Map<number, Gamepad>) {
+    const touch = this.touch
+    if (!touch) return
+    const s = this.state[this.touchPort()]
+    const own = touch.axes()
+    if (own) {
+      s.lx = own.lx
+      s.ly = own.ly
+      s.rx = own.rx
+      s.ry = own.ry
+    }
+    s.cur |= touch.buttonMask()
+    // The launcher's virtual pad only exists while a finger is down, so seeing
+    // it counts as hands-on even before the stick leaves its dead zone. Best
+    // effort: it only carries that name when no real pad sits at index 0 for it
+    // to inherit one from (twinTouchGamepad's `id: base.id || …`), and the
+    // deflection test below is what answers in every other case.
+    let padDown = false
+    for (const pad of live.values()) {
+      if (isTouchPadId(pad.id)) padDown = true
+    }
+    const deflected =
+      Math.abs(s.lx) > TOUCH_ACTIVE_AXIS || Math.abs(s.ly) > TOUCH_ACTIVE_AXIS ||
+      Math.abs(s.rx) > TOUCH_ACTIVE_AXIS || Math.abs(s.ry) > TOUCH_ACTIVE_AXIS
+    touch.noteActivity(padDown || deflected)
+  }
+
+  /**
+   * The port touch lands on. The launcher always publishes its virtual touch
+   * pad as gamepad index 0 (twinTouchGamepad writes out[0]), which this source
+   * may have slotted anywhere depending on what was already plugged in; with no
+   * such pad — our own analogs, or the keyboard — the answer is port 0, which
+   * is always connected.
+   */
+  private touchPort(): number {
+    const port = this.slots.indexOf(0)
+    return port === -1 ? 0 : port
   }
 
   /** ports with a controller; port 0 is always present for the keyboard */

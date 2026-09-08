@@ -8,6 +8,7 @@ import { createRuntime, type PS2Runtime } from '5velte-ps2'
 import { createPhaserHost } from '5velte-ps2/phaser'
 import { WebPadSource } from './pad-source.ts'
 import { makeMultiPads } from './multi-pads.ts'
+import { TouchControls } from './touch-controls.ts'
 import { makeSoundShim } from './sound-shim.ts'
 import { installWavesOverride } from './waves-param.ts'
 
@@ -27,6 +28,7 @@ const sfxUrls = import.meta.glob('../../ps2/assets/sfx/*.wav', {
 export default class Ps2Scene extends Phaser.Scene {
   private runtime?: PS2Runtime
   private pads = new WebPadSource()
+  private touch?: TouchControls
   private destroyHost?: () => void
   private ready = false
 
@@ -46,6 +48,13 @@ export default class Ps2Scene extends Phaser.Scene {
   }
 
   create() {
+    // Touch Twin-Stick: the launcher's sticks arrive as a buttonless pad, so
+    // this puts the missing START on screen (and provides the sticks too when
+    // the launcher can't reach into this frame). Wired before the game boots
+    // so its very first title frame can already be started with a thumb.
+    this.touch = new TouchControls()
+    this.pads.attachTouch(this.touch)
+
     const { host, destroy } = createPhaserHost({
       scene: this,
       pads: this.pads,
@@ -87,6 +96,7 @@ export default class Ps2Scene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.DESTROY, () => {
       this.destroyHost?.()
       this.pads.destroy()
+      this.touch?.destroy()
     })
   }
 
