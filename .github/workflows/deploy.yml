@@ -30,6 +30,14 @@ jobs:
 
   build:
     needs: nro
+    # The site is the only way the web build, the ISO, the Wave Editor and the
+    # launcher zip reach anyone, and none of them are built here from devkitPro
+    # — but the NRO is, against a package server with its own outages. A 403
+    # from pkg.devkitpro.org on `dkp-pacman -Sy` failed two attempts of run 31
+    # back to back, which skipped this job and left a merged change unpublished.
+    # So the deploy no longer waits on the Switch build being possible: it runs
+    # whatever the nro job did, and only the NRO itself goes missing.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,10 +63,22 @@ jobs:
         run: deno run --allow-read --allow-write --allow-run --allow-env scripts/build-launcher-zip.ts dist/shmup-party-ps2-web.zip
 
       - name: Fetch Switch NRO from the nro job
+        if: ${{ needs.nro.result == 'success' }}
         uses: actions/download-artifact@v4
         with:
           name: shmup-party-nro
           path: dist
+
+      # No NRO this run: carry the published one forward so the download page's
+      # Switch button keeps working instead of shipping a 404. Best effort — if
+      # the live copy can't be fetched either, the rest of the site still goes.
+      - name: Carry the published Switch NRO forward
+        if: ${{ needs.nro.result != 'success' }}
+        continue-on-error: true
+        run: |
+          echo "::warning title=Switch NRO not rebuilt::the nro job ended '${{ needs.nro.result }}' — publishing the previously deployed NRO"
+          curl -fsSL --retry 3 --retry-delay 5 -o dist/shmup-party.nro \
+            https://easierbycode.com/shmup-party-ps2/shmup-party.nro
 
       - uses: actions/upload-pages-artifact@v3
         with:
