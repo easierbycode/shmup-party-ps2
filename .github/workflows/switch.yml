@@ -19,9 +19,21 @@ jobs:
         with:
           submodules: true
 
+      # pkg.devkitpro.org hands CI runners the odd 403, and a database sync is
+      # the first thing every NRO build does — so a blip there costs the whole
+      # Switch build. Retry before giving up; a sustained outage still fails,
+      # which deploy.yml now survives rather than skipping the site.
       - name: Install SDL2 portlibs
         run: |
-          dkp-pacman -Sy --noconfirm
+          for attempt in 1 2 3; do
+            dkp-pacman -Sy --noconfirm && break
+            if [ "$attempt" = 3 ]; then
+              echo "pkg.devkitpro.org would not sync after 3 attempts"
+              exit 1
+            fi
+            echo "database sync failed (attempt $attempt of 3) — retrying"
+            sleep $((attempt * 20))
+          done
           dkp-pacman -S --noconfirm --needed switch-sdl2 switch-sdl2_image switch-sdl2_mixer switch-libpng switch-zlib
 
       - uses: actions/setup-node@v4
