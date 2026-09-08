@@ -137,9 +137,54 @@ publish it.
 - **START** pause · **SELECT** restart run
 - Keyboard: arrows/WASD move, SPACE fire, Q dash, E weapon, ENTER start,
   SHIFT restart
+- Touch: **Touch Twin-Stick** in the launcher — see below
 - Player slots wear different rigs: **P1** is Duke (shmup-party-phaser4's
   attract hero), **P2** the classic trooper, **P3/P4** Contra's Bill and
   Lance
+
+### Touch Twin-Stick
+
+On a phone the game is played through the
+[shmupX / cmg launcher](https://github.com/shmupX/shmupX.github.io), whose
+Guide carries a **Touch Twin-Stick** toggle for the games that advertise it
+(this one does, on boot, with `{ type: 'cmg-twinstick', default: true }`): the
+left half of the screen becomes the move stick, the right half aim + fire.
+
+Whichever way those sticks arrive, they arrive as ANALOG AXES AND NOTHING ELSE
+— the launcher's virtual pad reports all sixteen buttons unpressed — so a
+player on glass could move and aim and could never press START, the one button
+the title screen, a spectator seat, the perk picker and the game-over board all
+wait on. [`src/web/touch-controls.ts`](src/web/touch-controls.ts) puts that
+button back:
+
+- **Where.** Top centre of the right half — the far corner of the aim thumb's
+  reach — clamped clear of the launcher's own top-right corner zone (the
+  two-finger gesture that opens the Guide) on viewports too narrow for 75% to
+  clear it by itself.
+- **When.** It is up whenever the game is waiting, and gone the whole time the
+  game is being played: any stick input hides it at once (so does pressing it),
+  and it drifts back about a second after the last finger lifts. START is what
+  every screen wants, so nothing is out of reach — but nothing is on screen
+  during a run either.
+- **Which document.** Installed from the eShop the build is served same-origin
+  (`/eshop/shmup-party-ps2/…`), and the launcher's touch zones then cover this
+  frame entirely — so the button is mounted into the launcher's own document,
+  above them, and taken back out the moment those zones come down (the Guide
+  opening, or the toggle going off). Served cross-origin the launcher can't
+  patch us: it posts `cmg-twinstick-touch-set` instead and this module provides
+  the zones, the stick visuals and the vectors itself, in our own page — the
+  shape shmup-party-phaser4's `touch-controls.ts` established.
+
+`?touch=1` on the play page forces the whole thing on without a launcher (and
+`?touch=0` off), which is how to see it on a desktop.
+
+What touch still does not reach, because `ps2/` reads those as plain button
+edges and no on-screen control emits them: the barrier dash (L1) and the weapon
+cycle (R1), picking a perk other than the middle one (START confirms the
+highlighted card; only LEFT/RIGHT move it), moving between the three game-over
+initials, and leaving a spectator seat early (SELECT/TRIANGLE). A run plays
+start to finish on sticks and START — this adds the button the flow was
+missing, not a full on-screen pad.
 
 ## Demo mode
 
