@@ -10,7 +10,7 @@
 // pad — bails back to the title. With no human aboard the reel returns to
 // the title by itself after a full lap.
 
-import GameScreen, { makePlayer } from 'screens/game.js';
+import GameScreen, { makePlayer, perkDir } from 'screens/game.js';
 import { DEMOS } from 'data/demos.js';
 import { DEMO, ENEMIES, VARIANTS, WEAPONS, PERKS, PLAYER, POWERUPS } from 'data/tuning.js';
 import { screens } from 'lib/screens.js';
@@ -289,14 +289,15 @@ export default class DemoScreen extends GameScreen {
     // the human's level-ups open the real perk picker (and hold the reel);
     // AI troopers grab a random perk like phaser4's demo bot
     if (w.perkOpen) {
-      this.updatePerkOverlay();
+      this.updatePerkOverlay(dt);
       return;
     }
     while (w.perkQueue.length > 0) {
       const p = w.perkQueue.shift();
       if (p.ai) this.applyPerk(p, pick(PERKS));
       else {
-        w.perkOpen = { player: p, idx: 1 };
+        // dir/repeat carry the picker's held-direction state — see GameScreen
+        w.perkOpen = { player: p, idx: 1, dir: perkDir(this.padFor(p)), repeat: null };
         return;
       }
     }

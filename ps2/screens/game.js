@@ -29,6 +29,15 @@ const GREEN = () => Color.new(156, 255, 107, 128);
 const RED = () => Color.new(255, 64, 64, 128);
 const YELLOW = () => Color.new(246, 255, 74, 128);
 
+// Perk picker input. Sh'M↑ Party is a twin-stick game — the d-pad is only ever
+// a movement fallback (updatePlayer below), and the controls the site and the
+// title screen teach are all stick — so a player with a pad in their hands
+// reaches for a stick on the level-up cards too. Taking only the d-pad there
+// (as this screen used to) reads as "the pad doesn't work on this menu".
+const PERK_STICK = 0.5; // deflection that counts as a direction
+const PERK_REPEAT_DELAY = 0.4; // holding a direction walks the row, like the
+const PERK_REPEAT_EVERY = 0.22; // gameover screen's letter wheel
+
 const POWERUP_PICS = {
   speed: 'powerup-speed',
   fireblast: 'powerup-fireblast',
@@ -38,6 +47,13 @@ const POWERUP_PICS = {
   freeze: 'powerup-freeze',
   reflex: 'powerup-reflex-boost',
 };
+
+/** left/right on the perk cards, from the d-pad or either stick, as -1/0/1 */
+export function perkDir(pad) {
+  if (pad.held(Pads.LEFT) || pad.lx <= -PERK_STICK || pad.rx <= -PERK_STICK) return -1;
+  if (pad.held(Pads.RIGHT) || pad.lx >= PERK_STICK || pad.rx >= PERK_STICK) return 1;
+  return 0;
+}
 
 export function makePlayer(port, index) {
   return {
@@ -417,11 +433,16 @@ export default class GameScreen {
       this.applyPerk(w.perkQueue.shift(), pick(PERKS));
     }
     if (w.perkOpen) {
-      this.updatePerkOverlay();
+      this.updatePerkOverlay(dt);
       return;
     }
     if (w.perkQueue.length > 0) {
-      w.perkOpen = { player: w.perkQueue.shift(), idx: 1 };
+      const player = w.perkQueue.shift();
+      // dir/repeat drive the held-direction auto-repeat below. dir is seeded
+      // from the pad as it reads right now and repeat starts parked (null), so
+      // the stick that was aiming at the instant of the level-up has to come
+      // back to centre before it walks the cards.
+      w.perkOpen = { player, idx: 1, dir: perkDir(this.padFor(player)), repeat: null };
       return;
     }
 
@@ -875,17 +896,37 @@ export default class GameScreen {
     }
   }
 
-  updatePerkOverlay() {
+  updatePerkOverlay(dt) {
     const w = this.world;
-    const p = w.perkOpen.player;
-    const pad = pollPad(p.port);
-    if (pad.just(Pads.LEFT)) w.perkOpen.idx = (w.perkOpen.idx + PERKS.length - 1) % PERKS.length;
-    if (pad.just(Pads.RIGHT)) w.perkOpen.idx = (w.perkOpen.idx + 1) % PERKS.length;
+    const o = w.perkOpen;
+    const p = o.player;
+    const pad = this.padFor(p);
+
+    // step once when the direction changes, then auto-repeat while it is held
+    const dir = perkDir(pad);
+    if (dir !== o.dir) {
+      o.dir = dir;
+      o.repeat = PERK_REPEAT_DELAY;
+      if (dir) this.movePerk(dir);
+    } else if (dir && o.repeat !== null) {
+      o.repeat -= dt;
+      while (o.repeat <= 0) {
+        o.repeat += PERK_REPEAT_EVERY;
+        this.movePerk(dir);
+      }
+    }
+
     if (pad.just(Pads.CROSS) || pad.just(Pads.START)) {
       sfx('button_press');
-      this.applyPerk(p, PERKS[w.perkOpen.idx]);
+      this.applyPerk(p, PERKS[o.idx]);
       w.perkOpen = null;
     }
+  }
+
+  movePerk(d) {
+    const o = this.world.perkOpen;
+    sfx('switch');
+    o.idx = (o.idx + d + PERKS.length) % PERKS.length;
   }
 
   applyPerk(p, perk) {
@@ -1087,6 +1128,6 @@ export default class GameScreen {
       drawTextCentered(x + cardW / 2, y + 88, perk.name, { color: focused ? GREEN() : WHITE() });
       drawTextCentered(x + cardW / 2, y + 116, perk.desc, { color: Color.new(180, 220, 180, 110) });
     }
-    drawTextCentered(SCREEN_W / 2, 348, 'LEFT/RIGHT: SELECT   CROSS: CONFIRM', { color: Color.new(200, 200, 200, 100) });
+    drawTextCentered(SCREEN_W / 2, 348, 'STICK OR D-PAD: SELECT   CROSS: CONFIRM', { color: Color.new(200, 200, 200, 100) });
   }
 }
